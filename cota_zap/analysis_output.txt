@@ -1,0 +1,27 @@
+Analyzing cota_zap...                                           
+
+warning - The URI 'package:flutter_lints/flutter.yaml' included in 'D:\Python_projects\CotaZap\cota_zap\analysis_options.yaml' can't be found when analyzing 'D:\Python_projects\CotaZap\cota_zap' - analysis_options.yaml:1:10 - include_file_not_found
+warning - The value of the field '_supabase' isn't used - lib\core\utils\sync_manager.dart:5:25 - unused_field
+   info - 'package:drift/web.dart' is deprecated and shouldn't be used. This variant of web support has downsides compared to `package:drift/wasm.dart` and is in a deprecated bugfix-only mode. Please consider migrating to the new web APIS: https://drift.simonbinder.eu/web - lib\drift\connection\web.dart:2:1 - deprecated_member_use
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:21:5 - prefer_final_locals
+   info - Statement should be on a separate line - lib\features\quotation\domain\services\procurement_engine.dart:25:30 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\features\quotation\domain\services\procurement_engine.dart:32:44 - always_put_control_body_on_new_line
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:35:9 - prefer_final_locals
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:36:9 - prefer_final_locals
+   info - Statement should be on a separate line - lib\features\quotation\domain\services\procurement_engine.dart:40:25 - always_put_control_body_on_new_line
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:41:9 - prefer_final_locals
+   info - Statement should be on a separate line - lib\features\quotation\domain\services\procurement_engine.dart:47:26 - always_put_control_body_on_new_line
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:48:9 - prefer_final_locals
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:52:9 - prefer_final_locals
+   info - Local variables should be final - lib\features\quotation\domain\services\procurement_engine.dart:69:12 - prefer_final_locals
+   info - Statement should be on a separate line - lib\features\quotation\domain\services\procurement_engine.dart:70:28 - always_put_control_body_on_new_line
+warning - The value of the field '_messageTemplateController' isn't used - lib\features\quotation\presentation\pages\new_quotation_page.dart:26:31 - unused_field
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\new_quotation_page.dart:56:36 - always_put_control_body_on_new_line
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\features\quotation\presentation\pages\new_quotation_page.dart:112:21 - deprecated_member_use
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\new_quotation_page.dart:236:40 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\quotation_detail_page.dart:175:42 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\quotation_detail_page.dart:223:22 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\quotation_detail_page.dart:224:27 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\features\quotation\presentation\pages\quotation_detail_page.dart:225:25 - always_put_control_body_on_new_line
+warning - Unused import: 'package:cota_zap/core/di/injection.dart' - lib\features\supplier_profile\presentation\pages\supplier_profile_page.dart:3:8 - unused_import
+

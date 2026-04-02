@@ -1,0 +1,47 @@
+# Flutter/Dart
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.packages
+**/ios/Flutter/.last_build_id
+**/ios/.generated/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/flutter/ephemeral/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/env/
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.lib/
+**/lib/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/share/python-wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+
+# IDEs
+**/.idea/
+**/.vscode/
+**/*.swp
+**/*.swo
+**/*.DS_Store
+
+# Env/Secrets
+**/.env
+**/app_config.dart.local
