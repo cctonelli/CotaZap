@@ -17,14 +17,15 @@
 **/*$py.class
 **/*.so
 **/.Python
+**/venv/
 **/env/
+**/.venv/
+**/bin/
 **/build/
 **/develop-eggs/
 **/dist/
 **/downloads/
 **/eggs/
-**/.lib/
-**/lib/
 **/parts/
 **/sdist/
 **/var/
