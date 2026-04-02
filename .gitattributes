@@ -1,0 +1,11 @@
+# Marcar as pastas de plataforma como vendor (código de terceiros/gerado)
+# para que o GitHub as ignore na contagem de linguagens e foque no Dart.
+
+cota_zap/android/   linguist-vendored
+cota_zap/ios/       linguist-vendored
+cota_zap/windows/   linguist-vendored
+cota_zap/macos/     linguist-vendored
+cota_zap/linux/     linguist-vendored
+
+# Garantir que arquivos .dart sejam contados como principal
+*.dart linguist-detectable
