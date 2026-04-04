@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cota_zap/core/di/injection.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cota_zap/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:cota_zap/core/network/supabase_service.dart';
 
 class SideMenuDrawer extends ConsumerWidget {
   const SideMenuDrawer({super.key});
@@ -20,6 +22,7 @@ class SideMenuDrawer extends ConsumerWidget {
               children: [
                 if (userRole == UserRole.buyer) ..._buildBuyerMenu(context),
                 if (userRole == UserRole.supplier) ..._buildSupplierMenu(context),
+                if (userRole == UserRole.admin) ..._buildAdminMenu(context),
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.swap_horiz, color: Colors.blue),
@@ -29,10 +32,21 @@ class SideMenuDrawer extends ConsumerWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.bug_report, color: Colors.orange),
+                  title: const Text('Diagnósticos'),
+                  onTap: () {
+                    context.push('/diagnostics');
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.logout, color: Colors.redAccent),
                   title: const Text('Sair'),
-                  onTap: () {
-                    // Implement Logout logic
+                  onTap: () async {
+                    Navigator.pop(context); // Fecha o drawer
+                    await ref.read(authControllerProvider.notifier).signOut();
+                    if (context.mounted) {
+                      context.go('/login');
+                    }
                   },
                 ),
               ],
@@ -41,7 +55,7 @@ class SideMenuDrawer extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
-              'CotaZap v1.4',
+              'CotaZap v1.5',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ),
@@ -79,6 +93,14 @@ class SideMenuDrawer extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              SupabaseService.client.auth.currentUser?.email ?? 'Usuário não logado',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),
@@ -90,14 +112,14 @@ class SideMenuDrawer extends ConsumerWidget {
       _buildMenuItem(
         context,
         icon: Icons.dashboard,
-        title: 'Minhas Cotações',
-        route: '/quotations',
+        title: 'Painel Dashboard',
+        route: '/buyer-dashboard',
       ),
       _buildMenuItem(
         context,
-        icon: Icons.person,
-        title: 'Meus Dados (Comprador)',
-        route: '/buyer-profile',
+        icon: Icons.add_circle_outline,
+        title: 'Nova Cotação',
+        route: '/new-quotation',
       ),
       _buildMenuItem(
         context,
@@ -113,6 +135,12 @@ class SideMenuDrawer extends ConsumerWidget {
       ),
       _buildMenuItem(
         context,
+        icon: Icons.person,
+        title: 'Meus Dados (Comprador)',
+        route: '/buyer-profile',
+      ),
+      _buildMenuItem(
+        context,
         icon: Icons.link,
         title: 'Vincular Produtos',
         route: '/supplier-product-links',
@@ -124,15 +152,44 @@ class SideMenuDrawer extends ConsumerWidget {
     return [
       _buildMenuItem(
         context,
+        icon: Icons.dashboard,
+        title: 'Painel Fornecedor',
+        route: '/supplier-dashboard',
+      ),
+      _buildMenuItem(
+        context,
         icon: Icons.assignment_returned,
         title: 'Cotações Recebidas',
-        route: '/quotations', // Reuse or create a supplier-specific dashboard
+        route: '/quotations',
       ),
       _buildMenuItem(
         context,
         icon: Icons.account_circle,
         title: 'Meus Dados (Fornecedor)',
         route: '/supplier-profile',
+      ),
+    ];
+  }
+
+  List<Widget> _buildAdminMenu(BuildContext context) {
+    return [
+      _buildMenuItem(
+        context,
+        icon: Icons.admin_panel_settings,
+        title: 'Painel Admin',
+        route: '/admin-dashboard',
+      ),
+      _buildMenuItem(
+        context,
+        icon: Icons.verified_user,
+        title: 'Verificar Fornecedores',
+        route: '/admin-verifications',
+      ),
+      _buildMenuItem(
+        context,
+        icon: Icons.analytics,
+        title: 'Métricas da Rede',
+        route: '/admin-metrics',
       ),
     ];
   }

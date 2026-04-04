@@ -4,9 +4,11 @@ part of 'quotations_dao.dart';
 
 // ignore_for_file: type=lint
 mixin _$QuotationsDaoMixin on DatabaseAccessor<AppDatabase> {
-  $BuyersTable get buyers => attachedDatabase.buyers;
-  $SuppliersTable get suppliers => attachedDatabase.suppliers;
+  $AppProfilesTable get appProfiles => attachedDatabase.appProfiles;
+  $AppContactsTable get appContacts => attachedDatabase.appContacts;
   $QuotationsTable get quotations => attachedDatabase.quotations;
+  $ProductCategoriesTable get productCategories =>
+      attachedDatabase.productCategories;
   $ProductsTable get products => attachedDatabase.products;
   $SupplierResponsesTable get supplierResponses =>
       attachedDatabase.supplierResponses;

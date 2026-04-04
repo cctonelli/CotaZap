@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/di/injection.dart';
 import 'package:cota_zap/features/quotation/presentation/controllers/quotation_detail_controller.dart';
@@ -37,7 +38,12 @@ class QuotationDetailPage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: controller.runAnalysis,
+            onPressed: controller.loadData,
+          ),
+          IconButton(
+            icon: const Icon(Icons.grid_view),
+            onPressed: () => context.push('/quotation-comparison/$quotationId'),
+            tooltip: 'Comparativo Geral',
           ),
         ],
       ),
@@ -115,8 +121,8 @@ class QuotationDetailPage extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           if (q.winnerSupplierId != null && q.winnerSupplierId != 0)
-            FutureBuilder<Supplier?>(
-              future: ref.read(suppliersDaoProvider).getSupplierById(q.winnerSupplierId!),
+            FutureBuilder<AppContact?>(
+              future: ref.read(contactsDaoProvider).getSupplierById(q.winnerSupplierId!),
               builder: (context, snapshot) {
                 final winnerName = snapshot.data?.tradeName ?? 'Calculando...';
                 return _buildMiniInfo(Icons.emoji_events, 'Vencedor Sugerido', winnerName);
@@ -184,8 +190,8 @@ class QuotationDetailPage extends ConsumerWidget {
                   }
                   
                   return Column(
-                    children: responses.map((r) => FutureBuilder<Supplier?>(
-                      future: ref.read(suppliersDaoProvider).getSupplierById(r.supplierId),
+                    children: responses.map((r) => FutureBuilder<AppContact?>(
+                      future: ref.read(contactsDaoProvider).getSupplierById(r.supplierId),
                       builder: (context, suppSnapshot) {
                          final supplierName = suppSnapshot.data?.tradeName ?? 'Ref #${r.supplierId}';
                          return ListTile(
@@ -198,15 +204,26 @@ class QuotationDetailPage extends ConsumerWidget {
                               style: const TextStyle(fontSize: 12),
                             ),
                             isThreeLine: true,
-                            trailing: r.id == item.bestResponseId 
-                                ? Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Chip(label: Text('MELHOR'), backgroundColor: Colors.greenAccent, padding: EdgeInsets.zero),
-                                      _buildScoreIndicator(r.calculatedScore),
-                                    ],
-                                  )
-                                : _buildScoreIndicator(r.calculatedScore),
+                            trailing: Column(
+                               mainAxisSize: MainAxisSize.min,
+                               crossAxisAlignment: CrossAxisAlignment.end,
+                               children: [
+                                 if (r.id == item.bestResponseId)
+                                   Container(
+                                     margin: const EdgeInsets.only(bottom: 4),
+                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                     decoration: BoxDecoration(
+                                       color: Colors.green,
+                                       borderRadius: BorderRadius.circular(12),
+                                     ),
+                                     child: const Text(
+                                       'MELHOR',
+                                       style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                     ),
+                                   ),
+                                 _buildScoreIndicator(r.calculatedScore),
+                               ],
+                            ),
                          );
                       }
                     )).toList(),

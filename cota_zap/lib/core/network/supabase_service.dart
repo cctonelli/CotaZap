@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:cota_zap/core/config/app_config.dart';
-import 'package:flutter/foundation.dart';
+import 'package:cota_zap/core/utils/app_logger.dart';
 
 class SupabaseService {
   SupabaseService._internal();
@@ -8,48 +8,72 @@ class SupabaseService {
 
   static SupabaseClient? _client;
 
-  /// Getter para o cliente do Supabase, garantindo que foi inicializado
-  SupabaseClient get client {
-    if (_client == null) {
-      try {
-        _client = Supabase.instance.client;
-      } catch (e) {
-        throw 'SupabaseService: O cliente não foi inicializado corretamente. Garanta que o app foi reiniciado.';
-      }
+  static SupabaseClient get client {
+    if (_client != null) return _client!;
+    
+    try {
+      // Tenta recuperar do Singleton global do Supabase Flutter
+      _client = Supabase.instance.client;
+      return _client!;
+    } catch (e) {
+      AppLogger.error('Erro ao obter cliente Supabase', error: e, tag: 'Supabase');
+      throw Exception('O cliente Supabase não foi inicializado corretamente.');
     }
-    return _client!;
   }
 
   static Future<void> initialize() async {
-    if (_client != null) return;
     try {
+      try {
+        _client = Supabase.instance.client;
+        AppLogger.success('Supabase já inicializado.', tag: 'Supabase');
+        return;
+      } catch (_) {}
+
       final supabase = await Supabase.initialize(
         url: AppConfig.supabaseUrl,
         anonKey: AppConfig.supabaseAnonKey,
       );
       _client = supabase.client;
-      if (kDebugMode) {
-        print('✅ SupabaseService: Inicializado com sucesso.');
-      }
+      AppLogger.success('Supabase inicializado do zero.', tag: 'Supabase');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ SupabaseService: Falha ao inicializar: $e');
-      }
+      AppLogger.error('Falha na inicialização do Supabase', error: e, tag: 'Supabase');
       rethrow;
     }
   }
 
-  /// Salva ou atualiza um perfil no Supabase
-  Future<void> updateProfile({
-    required String table, // 'buyers' ou 'suppliers'
-    required Map<String, dynamic> data,
+  static Future<void> updateProfile({
+    required String table,
+    required dynamic data,
   }) async {
     try {
+      AppLogger.info('Tentando upsert na tabela $table...', tag: 'Supabase');
       await client.from(table).upsert(data);
+      AppLogger.success('Dados salvos com sucesso na tabela $table!', tag: 'Supabase');
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ SupabaseService: Erro no upsert ($table): $e');
+      AppLogger.error('Erro no upsert ($table)', error: e, tag: 'Supabase');
+      rethrow;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchTable({
+    required String table,
+    String select = '*',
+    Map<String, dynamic>? filter,
+  }) async {
+    try {
+      AppLogger.info('Buscando dados da tabela $table...', tag: 'Supabase');
+      var query = client.from(table).select(select);
+      
+      if (filter != null) {
+        filter.forEach((key, value) {
+          query = query.eq(key, value);
+        });
       }
+      
+      final data = await query;
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (e) {
+      AppLogger.error('Erro ao buscar dados ($table)', error: e, tag: 'Supabase');
       rethrow;
     }
   }
