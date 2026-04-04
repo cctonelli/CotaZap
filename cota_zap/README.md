@@ -1,56 +1,77 @@
-# ⚡ CotaZap - Modern Procurement Platform
+# ⚡ CotaZap v1.5 - Smart Procurement Ecosystem
 
-CotaZap é uma plataforma inteligente de aquisição (procurement) projetada para modernizar a interação entre compradores e fornecedores via WhatsApp. Focada em agilidade, análise de dados e scoring inteligente de propostas.
+O **CotaZap** é uma plataforma disruptiva de aquisição estratégica (*e-procurement*) que automatiza a negociação entre compradores e fornecedores via WhatsApp. O sistema utiliza algoritmos de **Scoring Inteligente** para ranquear propostas em segundos, garantindo a melhor compra baseada em múltiplos critérios.
 
-## 🚀 Funcionalidades Principais
+---
 
-*   **Cotações Reativas**: Envio de listas de produtos para múltiplos fornecedores com um clique.
-*   **Scoring Inteligente (BI)**: Motor de avaliação que ranqueia fornecedores com base em:
-    *   Preço (Peso 60%)
-    *   Prazo de Pagamento (Peso 20%)
-    *   Prazo de Entrega (Peso 20%)
-*   **Gestão de Cadastros**: Cadastro de parceiros, produtos e vínculos privados para cada comprador.
-*   **Integração com WhatsApp**: Placeholder para Evolution API visando automação de mensagens.
-*   **Arquitetura Limpa**: Implementado com Flutter + Riverpod + Drift (Local DB) + Supabase (Sincronização).
+## 🚀 O que há de novo na v1.5 (Multi-User)
 
-## 🏗️ Arquitetura
+Recentemente evoluímos para a versão **1.5**, introduzindo uma arquitetura multi-usuário escalável:
 
-O projeto segue os princípios da **Clean Architecture**:
+-   **🎭 Perfis de Acesso (Roles)**: 
+    -   **Comprador**: Gestão de produtos, cotações e rede privada de fornecedores.
+    -   **Fornecedor**: Cadastro na rede global, recebimento de demandas e gestão de respostas.
+    -   **Admin**: Painel de controle para moderação de rede, categorias e unidades de medida.
+-   **🔐 Segurança de Dados (RLS)**: Implementação de *Row Level Security* no Supabase, garantindo isolamento total entre usuários.
+-   **🔄 Sincronização Híbrida (Drift + Supabase)**: 
+    -   Persistência local (Offline-First) com **Drift (SQLite)**.
+    -   Sincronização reativa em nuvem com **Supabase**.
+    -   Auto-fetch de perfil na inicialização do app.
+-   **📊 Dashboards Especializados**: Telas de controle personalizadas para cada tipo de usuário.
 
-*   **Presentation**: Widgets reativos (Riverpod ConsumerWidget) e Controllers (Notifiers).
-*   **Domain**: Entidades de negócio e serviços puramente lógicos (ex: `ProcurementEngine`).
-*   **Data**: Persistência local robusta com Drift e integração remota com Supabase.
+---
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Stack Tecnológica
 
-*   **Framework**: [Flutter](https://flutter.dev)
-*   **State Management**: [Riverpod](https://riverpod.dev)
-*   **Database**: [Drift](https://drift.simonbinder.eu/) (SQLite for Flutter)
-*   **Backend**: [Supabase](https://supabase.com)
-*   **Routing**: [GoRouter](https://pub.dev/packages/go_router)
+-   **Frontend**: [Flutter](https://flutter.dev) (Windows/Web/Mobile)
+-   **State Management**: [Riverpod 2.x](https://riverpod.dev) com Geração de Código.
+-   **Persistência Local**: [Drift](https://drift.simonbinder.eu/) (SQLite de alto desempenho).
+-   **Backend & Auth**: [Supabase](https://supabase.com) (Auth, PostgreSQL, RLS).
+-   **Roteamento**: [GoRouter](https://pub.dev/packages/go_router) para navegação declarativa.
 
-## 📦 Como Executar
+---
 
-1.  Clone o repositório:
-    ```bash
-    git clone https://github.com/usuario/CotaZap.git
-    ```
-2.  Instale as dependências:
+## 🏗️ Arquitetura de Software
+
+Seguimos rigidamente os princípios da **Clean Architecture** para garantir manutenibilidade:
+
+1.  **Presentation Tier**: Controllers reativos e UI baseada em States.
+2.  **Domain Tier**: Lógica pura de negócio (Ex: `ProcurementEngine` para scoring de propostas).
+3.  **Data Tier**: DAOs robustos para SQLite e Repositórios para integração com APIs externas.
+
+---
+
+## 💡 Funcionalidades Chave
+
+-   **⚡ Cotações Turbo**: Envio de listas de produtos para múltiplos fornecedores via WhatsApp em um clique.
+-   **🧠 Motor de Scoring (BI)**: Algoritmo ponderado (Preço 60%, Prazo Pagamento 20%, Prazo Entrega 20%).
+-   **🛒 Catálogo Inteligente**: Cadastro de produtos com unidades de medida padronizadas.
+-   **🌐 Rede CotaZap**: Acesso a fornecedores públicos verificados e gestão de rede privada.
+
+---
+
+## ⚙️ Como Executar
+
+1.  **Instale as dependências**:
     ```bash
     flutter pub get
     ```
-3.  Gere os arquivos do banco de dados (Drift):
+2.  **Gere o código (Drift/Riverpod)**:
     ```bash
     flutter pub run build_runner build --delete-conflicting-outputs
     ```
-4.  Execute o projeto:
+3.  **Configuração Supabase**:
+    Configure suas credenciais em `lib/core/network/supabase_service.dart`.
+4.  **Launch**:
     ```bash
     flutter run
     ```
 
+---
+
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
+Este projeto é propriedade privada do ecossistema CotaZap.
 
 ---
-Desenvolvido com ❤️ pela equipe CotaZap.
+*Desenvolvido com excelência técnica para o mercado de Procurement.*
