@@ -3,28 +3,35 @@ import 'package:cota_zap/drift/database.dart';
 import 'package:cota_zap/core/di/injection.dart';
 import 'package:cota_zap/core/network/supabase_service.dart';
 import 'package:cota_zap/core/utils/app_logger.dart';
-import 'package:cota_zap/features/suppliers/presentation/controllers/categories_controller.dart';
 import 'package:drift/drift.dart';
 
 class SuppliersState {
   final List<AppContact> suppliers;
   final bool isLoading;
+  final bool showNetwork;
+  final String searchQuery;
   final String? errorMessage;
 
   SuppliersState({
     this.suppliers = const [],
     this.isLoading = false,
+    this.showNetwork = false,
+    this.searchQuery = '',
     this.errorMessage,
   });
 
   SuppliersState copyWith({
     List<AppContact>? suppliers,
     bool? isLoading,
+    bool? showNetwork,
+    String? searchQuery,
     String? errorMessage,
   }) {
     return SuppliersState(
       suppliers: suppliers ?? this.suppliers,
       isLoading: isLoading ?? this.isLoading,
+      showNetwork: showNetwork ?? this.showNetwork,
+      searchQuery: searchQuery ?? this.searchQuery,
       errorMessage: errorMessage,
     );
   }
@@ -35,34 +42,56 @@ final suppliersControllerProvider = NotifierProvider<SuppliersController, Suppli
 class SuppliersController extends Notifier<SuppliersState> {
   @override
   SuppliersState build() {
-    final categoriesState = ref.watch(categoriesControllerProvider);
-    Future.microtask(() => _init(categoriesState.selectedCategoryId));
-    return SuppliersState(isLoading: true);
+    final userId = ref.watch(userIdProvider);
+    
+    if (userId != null) {
+      Future.microtask(() => _init());
+    }
+    
+    return SuppliersState(isLoading: userId != null);
   }
 
-  Future<void> _init(int? categoryId) async {
+  Future<void> _init() async {
     final userId = ref.read(userIdProvider);
     if (userId == null) return;
 
-    try {
-      final dao = ref.read(contactsDaoProvider);
-      final cache = await dao.watchSuppliers(userId).first;
-      if (cache.isNotEmpty) {
-        state = state.copyWith(suppliers: cache, isLoading: false);
-      }
-    } catch (e) {
-      AppLogger.error('Erro ao ler cache', error: e);
-    }
+    // 1. Carregar local primeiro
+    await _loadFiltered();
+    
+    // 2. Sync apenas o que é do usuário + Rede Oficial
     await _syncFromSupabase();
-    await _loadFiltered(categoryId);
+  }
+
+  Future<void> toggleNetworkMode() async {
+    state = state.copyWith(showNetwork: !state.showNetwork, isLoading: true);
+    await _loadFiltered();
+  }
+
+  void updateSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+    _loadFiltered();
   }
 
   Future<void> _syncFromSupabase() async {
+    final userId = ref.read(userIdProvider);
+    if (userId == null) return;
+    
     final db = ref.read(databaseProvider);
     try {
-      final remoteSupps = await SupabaseService.fetchTable(table: 'app_contacts');
+      // FILTRO CRÍTICO: Busca apenas meus dados OU dados da Rede CotaZap
+      // Não traz dados privados de outros compradores
+      final remoteSupps = await SupabaseService.fetchTable(
+        table: 'app_contacts',
+        filter: {
+          'or': '(owner_id.eq.$userId,is_rede_cotazap.eq.true)'
+        }
+      );
+      
       if (remoteSupps.isNotEmpty) {
         for (var supp in remoteSupps) {
+          // Garante que se eu estiver baixando da rede, o owner_id local seja nulo para não confundir
+          final bool fromRede = supp['is_rede_cotazap'] ?? false;
+          
           await db.into(db.appContacts).insertOnConflictUpdate(
             AppContactsCompanion(
               id: Value(supp['id']),
@@ -70,7 +99,7 @@ class SuppliersController extends Notifier<SuppliersState> {
               whatsapp: Value(supp['whatsapp'] ?? ''),
               address: Value(supp['address']),
               active: Value(supp['active'] ?? true),
-              isRedeCotazap: Value(supp['is_rede_cotazap'] ?? false),
+              isRedeCotazap: Value(fromRede),
               priorityScore: Value(supp['priority_score'] ?? 0),
               cnpjCpf: Value(supp['cnpj_cpf']),
               contactName: Value(supp['contact_name']),
@@ -82,36 +111,50 @@ class SuppliersController extends Notifier<SuppliersState> {
               complement: Value(supp['complement']),
               isBuyer: Value(supp['is_buyer'] ?? false),
               isSupplier: Value(supp['is_supplier'] ?? true),
+              ownerId: Value(fromRede ? null : supp['owner_id']), 
               isSynced: const Value(true),
             ),
           );
         }
+        await _loadFiltered();
       }
     } catch (e) {
       AppLogger.error('Erro sync', error: e);
     }
   }
 
-  Future<void> _loadFiltered(int? categoryId) async {
+  Future<void> _loadFiltered() async {
     final dao = ref.read(contactsDaoProvider);
     final userId = ref.read(userIdProvider);
     final userRole = ref.read(userRoleProvider);
     
+    AppLogger.info('Carregando fornecedores filtrados (Network: ${state.showNetwork}, Query: ${state.searchQuery})', tag: 'Suppliers');
+    
     List<AppContact> list;
-    if (userRole == UserRole.admin) {
-      list = await dao.watchAll().first;
-    } else {
-      if (userId == null) {
-        list = [];
+    try {
+      if (userRole == UserRole.admin) {
+        list = await (dao.select(dao.appContacts)).get();
       } else {
-        final all = await dao.watchSuppliers(userId).first;
-        list = all.toList();
+        if (userId == null && !state.showNetwork) {
+          list = [];
+        } else {
+          // Usa a busca universal recém-implementada
+          list = await dao.searchUniversal(
+            state.searchQuery, 
+            ownerId: userId, 
+            onlyRede: state.showNetwork
+          );
+        }
       }
+      state = state.copyWith(suppliers: list, isLoading: false);
+      AppLogger.success('Lista de fornecedores atualizada: ${list.length} itens.', tag: 'Suppliers');
+    } catch (e) {
+      AppLogger.error('Erro ao carregar lista de fornecedores', error: e, tag: 'Suppliers');
+      state = state.copyWith(isLoading: false, errorMessage: 'Erro ao listar contatos.');
     }
-    state = state.copyWith(suppliers: list, isLoading: false);
   }
 
-  Future<void> addSupplier({
+  Future<bool> addSupplier({
     required String name,
     required String whatsapp,
     String? email,
@@ -124,13 +167,47 @@ class SuppliersController extends Notifier<SuppliersState> {
     String? zipCode,
     String? complement,
   }) async {
-    state = state.copyWith(isLoading: true);
-    final dao = ref.read(contactsDaoProvider);
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    final userId = ref.read(userIdProvider);
+    
+    if (userId == null) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Usuário não autenticado.');
+      return false;
+    }
+
     try {
-      final companion = AppContactsCompanion(
+      AppLogger.info('Cadastrando novo fornecedor no Supabase...', tag: 'Suppliers');
+      
+      // 1. Inserir no Supabase PRIMEIRO para garantir o ID oficial
+      final response = await SupabaseService.client.from('app_contacts').insert({
+        'trade_name': name,
+        'whatsapp': whatsapp,
+        'email': email,
+        'cnpj_cpf': cnpjCpf,
+        'contact_name': contactName,
+        'address': address,
+        'city': city,
+        'state': uf,
+        'neighborhood': neighborhood,
+        'zip_code': zipCode,
+        'complement': complement,
+        'is_buyer': false,
+        'is_supplier': true,
+        'is_rede_cotazap': false, // Cadastro privativo do comprador
+        'owner_id': userId,
+      }).select();
+
+      if (response.isEmpty) throw Exception('Falha ao obter ID do fornecedor no servidor.');
+      
+      final remoteId = response.first['id'] as int;
+      AppLogger.success('Fornecedor cadastrado no Supabase com ID: $remoteId', tag: 'Suppliers');
+
+      // 2. Salvar no SQLite local
+      final dao = ref.read(contactsDaoProvider);
+      await dao.upsertContact(AppContactsCompanion(
+        id: Value(remoteId),
         tradeName: Value(name),
         whatsapp: Value(whatsapp),
-        active: const Value(true),
         email: Value(email),
         cnpjCpf: Value(cnpjCpf),
         contactName: Value(contactName),
@@ -142,49 +219,30 @@ class SuppliersController extends Notifier<SuppliersState> {
         complement: Value(complement),
         isBuyer: const Value(false),
         isSupplier: const Value(true),
-        ownerId: Value(ref.read(userIdProvider)),
-      );
-      final id = await dao.upsertContact(companion);
-      
-      await SupabaseService.updateProfile(
-        table: 'app_contacts',
-        data: {
-          'trade_name': name,
-          'whatsapp': whatsapp,
-          'is_buyer': false,
-          'is_supplier': true,
-          'email': email,
-          'cnpj_cpf': cnpjCpf,
-          'contact_name': contactName,
-          'address': address,
-          'city': city,
-          'state': uf,
-          'neighborhood': neighborhood,
-          'zip_code': zipCode,
-          'complement': complement,
-          'owner_id': ref.read(userIdProvider),
-        },
-      );
+        isRedeCotazap: const Value(false),
+        ownerId: Value(userId),
+        isSynced: const Value(true),
+      ));
 
-      final db = ref.read(databaseProvider);
-      await (db.update(db.appContacts)..where((t) => t.id.equals(id))).write(
-        const AppContactsCompanion(isSynced: Value(true))
-      );
+      AppLogger.success('Fornecedor salvo localmente.', tag: 'Suppliers');
       
-      await _loadFiltered(ref.read(categoriesControllerProvider).selectedCategoryId);
+      // 3. Recarregar lista
+      await _loadFiltered();
+      return true;
     } catch (e) {
+      AppLogger.error('Erro ao cadastrar fornecedor', error: e, tag: 'Suppliers');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
     }
   }
 
   Future<void> forceRefresh() async {
-    final catId = ref.read(categoriesControllerProvider).selectedCategoryId;
-    await _init(catId);
+    await _init();
   }
 
   Future<void> deleteSupplier(AppContact supplier) async {
     state = state.copyWith(isLoading: true);
     await ref.read(contactsDaoProvider).deleteContact(supplier);
-    await _loadFiltered(ref.read(categoriesControllerProvider).selectedCategoryId);
+    await _loadFiltered();
   }
 }

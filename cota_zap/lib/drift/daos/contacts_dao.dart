@@ -41,10 +41,16 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
   }
 
   // Busca o perfil do usuário logado (Usa o e-mail do Auth como âncora de segurança + owner_id)
-  Future<AppContact?> getMyProfile(String userId, {String? email}) {
+  Future<AppContact?> getMyProfile(String userId, {String? email, bool? isBuyer, bool? isSupplier}) {
     var query = select(appContacts)..where((t) => t.ownerId.equals(userId));
     if (email != null) {
       query = query..where((t) => t.email.equals(email));
+    }
+    if (isBuyer != null) {
+      query = query..where((t) => t.isBuyer.equals(isBuyer));
+    }
+    if (isSupplier != null) {
+      query = query..where((t) => t.isSupplier.equals(isSupplier));
     }
     return (query..limit(1)).getSingleOrNull();
   }
@@ -59,6 +65,35 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
 
   Future<int> upsertContact(AppContactsCompanion contact) {
     return into(appContacts).insertOnConflictUpdate(contact);
+  }
+
+  // Busca Universal de Fornecedores/Contatos (CNPJ, Nome, WhatsApp, etc)
+  Future<List<AppContact>> searchUniversal(String query, {String? ownerId, bool onlyRede = false}) {
+    final queryLower = query.toLowerCase();
+    var q = select(appContacts);
+    
+    q.where((t) {
+      final matchesQuery = t.tradeName.replaceNullWith('').lower().contains(queryLower) |
+                           t.cnpjCpf.replaceNullWith('').lower().contains(queryLower) |
+                           t.contactName.replaceNullWith('').lower().contains(queryLower) |
+                           t.whatsapp.replaceNullWith('').lower().contains(queryLower) |
+                           t.email.replaceNullWith('').lower().contains(queryLower);
+      
+      Expression<bool> filter;
+      if (onlyRede) {
+        filter = matchesQuery & t.ownerId.isNull() & t.isSupplier.equals(true);
+      } else {
+        filter = matchesQuery & t.ownerId.equals(ownerId ?? '???') & t.isSupplier.equals(true);
+      }
+      return filter;
+    });
+
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.priorityScore, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.tradeName),
+    ]);
+
+    return q.get();
   }
 
   // Deleta um contato

@@ -2,17 +2,246 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cota_zap/core/presentation/widgets/side_menu_drawer.dart';
 import 'package:cota_zap/features/products/presentation/controllers/products_controller.dart';
-import 'package:cota_zap/features/suppliers/presentation/widgets/categories_chip_bar.dart';
 import 'package:cota_zap/features/suppliers/presentation/controllers/categories_controller.dart';
 import 'package:cota_zap/features/admin/presentation/controllers/units_of_measure_controller.dart';
 import 'package:cota_zap/drift/database.dart';
+import 'package:cota_zap/core/theme/app_theme.dart';
+import 'package:cota_zap/features/suppliers/presentation/widgets/categories_chip_bar.dart';
 
-class ProductsListPage extends ConsumerWidget {
+class ProductsListPage extends ConsumerStatefulWidget {
   const ProductsListPage({super.key});
+
+  @override
+  ConsumerState<ProductsListPage> createState() => _ProductsListPageState();
+}
+
+class _ProductsListPageState extends ConsumerState<ProductsListPage> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(productsControllerProvider);
+    final controller = ref.read(productsControllerProvider.notifier);
+
+    // Sincroniza o controller com o estado caso mude externamente
+    ref.listen<String>(productsControllerProvider.select((s) => s.searchQuery), (prev, next) {
+      if (next != _searchController.text) {
+        _searchController.text = next;
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(state.showNetwork ? 'Rede CotaZap' : 'Meus Produtos'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      drawer: const SideMenuDrawer(),
+      floatingActionButton: state.showNetwork 
+          ? null 
+          : FloatingActionButton(
+              onPressed: () => _showAddProductSheet(context, ref),
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Colors.grey.shade50],
+          ),
+        ),
+        child: Column(
+          children: [
+            const CategoriesChipBar(),
+            // BARRA DE PESQUISA DINÂMICA
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => controller.updateSearchQuery(value),
+                decoration: InputDecoration(
+                  hintText: 'Pesquisar por produto ou categoria...',
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
+                  suffixIcon: state.searchQuery.isNotEmpty 
+                    ? IconButton(
+                        icon: const Icon(Icons.clear), 
+                        onPressed: () {
+                          _searchController.clear();
+                          controller.updateSearchQuery('');
+                        },
+                      )
+                    : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                  ),
+                ),
+              ),
+            ),
+            
+            // SELETOR DE MODO
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false, 
+                    label: Text('Meus Produtos'),
+                    icon: Icon(Icons.inventory_2_outlined),
+                  ),
+                  ButtonSegment(
+                    value: true, 
+                    label: Text('Rede CotaZap'),
+                    icon: Icon(Icons.public),
+                  ),
+                ],
+                selected: {state.showNetwork},
+                onSelectionChanged: (newSelection) {
+                  controller.toggleNetworkMode();
+                },
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: Colors.grey.shade100,
+                  selectedBackgroundColor: AppTheme.primaryColor,
+                  selectedForegroundColor: Colors.white,
+                  side: BorderSide.none,
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: state.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.products.isEmpty
+                      ? _buildEmptyState(ref)
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: state.products.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final product = state.products[index];
+                            return _buildProductCard(product, controller, state.showNetwork);
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductCard(Product product, ProductsController controller, bool isRede) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: (isRede ? Colors.orange : AppTheme.primaryColor).withOpacity(0.1),
+          child: Icon(
+            isRede ? Icons.verified : Icons.inventory_2, 
+            color: isRede ? Colors.orange : AppTheme.primaryColor
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                product.description,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            if (isRede)
+              const Badge(
+                label: Text('REDE', style: TextStyle(fontSize: 10)),
+                backgroundColor: Colors.orange,
+              ),
+          ],
+        ),
+        subtitle: Text(product.unitMeasure),
+        trailing: isRede 
+          ? const Icon(Icons.chevron_right, color: Colors.grey)
+          : IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.grey),
+              onPressed: () => controller.deleteProduct(product),
+            ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(WidgetRef ref) {
+    final state = ref.read(productsControllerProvider);
+    final controller = ref.read(productsControllerProvider.notifier);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              state.showNetwork ? Icons.search_off : Icons.inventory_2_outlined, 
+              size: 80, 
+              color: Colors.grey.shade300
+            ),
+            const SizedBox(height: 16),
+            Text(
+              state.showNetwork 
+                ? 'Nenhum item encontrado na rede para esta categoria.'
+                : 'Seu catálogo privado está vazio.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 24),
+            if (!state.showNetwork) ...[
+              ElevatedButton.icon(
+                onPressed: () => controller.toggleNetworkMode(),
+                icon: const Icon(Icons.public),
+                label: const Text('BUSCAR NA REDE COTAZAP'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Ou use o botão + para cadastrar manualmente.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ] else 
+              TextButton(
+                onPressed: () => controller.toggleNetworkMode(),
+                child: const Text('Voltar para meus produtos'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _showAddProductSheet(BuildContext context, WidgetRef ref) {
     final descriptionController = TextEditingController();
-    final unitController = TextEditingController(text: 'UN');
+    final unitController = TextEditingController();
     final skuController = TextEditingController();
     int? selectedCatId;
 
@@ -52,7 +281,9 @@ class ProductsListPage extends ConsumerWidget {
                               return Autocomplete<UnitsOfMeasureData>(
                                 initialValue: TextEditingValue(text: unitController.text),
                                 optionsBuilder: (TextEditingValue textEditingValue) {
-                                  if (textEditingValue.text.isEmpty) return const Iterable<UnitsOfMeasureData>.empty();
+                                  if (textEditingValue.text.isEmpty) {
+                                    return unitsState.units.take(10);
+                                  }
                                   return unitsState.units.where((u) => 
                                     u.code.toLowerCase().contains(textEditingValue.text.toLowerCase()) || 
                                     u.name.toLowerCase().contains(textEditingValue.text.toLowerCase())
@@ -61,7 +292,6 @@ class ProductsListPage extends ConsumerWidget {
                                 displayStringForOption: (option) => option.code.toUpperCase(),
                                 onSelected: (option) => unitController.text = option.code.toUpperCase(),
                                 fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                                  // Sincroniza o controller do Autocomplete com o nosso unitController
                                   controller.text = unitController.text;
                                   controller.addListener(() => unitController.text = controller.text);
                                   
@@ -108,10 +338,7 @@ class ProductsListPage extends ConsumerWidget {
                     const SizedBox(height: 16),
                     const Text('Categoria', style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    if (categoriesState.isLoading && categoriesState.categories.isEmpty)
-                      const LinearProgressIndicator()
-                    else
-                      DropdownButtonFormField<int>(
+                    DropdownButtonFormField<int>(
                         value: selectedCatId,
                         items: [
                           const DropdownMenuItem(value: null, child: Text('Sem Categoria')),
@@ -122,7 +349,6 @@ class ProductsListPage extends ConsumerWidget {
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           filled: true,
                           fillColor: Colors.grey.shade50,
-                          suffixIcon: categoriesState.isLoading ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2))) : null,
                         ),
                       ),
                     const SizedBox(height: 32),
@@ -130,17 +356,46 @@ class ProductsListPage extends ConsumerWidget {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ref.read(productsControllerProvider.notifier).insertProduct(
+                        onPressed: () async {
+                          if (descriptionController.text.isEmpty || unitController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Por favor, preencha descrição e unidade.')),
+                            );
+                            return;
+                          }
+
+                          final success = await ref.read(productsControllerProvider.notifier).insertProduct(
                             description: descriptionController.text,
                             unitMeasure: unitController.text,
                             sku: skuController.text.isEmpty ? null : skuController.text,
                             categoryId: selectedCatId,
                           );
-                          Navigator.pop(context);
+
+                          if (mounted) {
+                            if (success) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Produto cadastrado com sucesso!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              final error = ref.read(productsControllerProvider).errorMessage ?? 'Erro desconhecido';
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('❌ Erro ao cadastrar: $error'),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: const EdgeInsets.only(bottom: 150, left: 20, right: 20),
+                                  duration: const Duration(seconds: 10),
+                                ),
+                              );
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF128C7E),
+                          backgroundColor: AppTheme.primaryColor,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                         child: const Text('CADASTRAR PRODUTO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -168,106 +423,10 @@ class ProductsListPage extends ConsumerWidget {
       focusNode: focusNode,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF128C7E)),
+        prefixIcon: Icon(icon, color: AppTheme.primaryColor),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.grey.shade50,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Garante que as unidades e categorias estejam carregadas
-    ref.read(unitsControllerProvider.notifier).forceRefresh();
-    
-    final state = ref.watch(productsControllerProvider);
-    final controller = ref.read(productsControllerProvider.notifier);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meus Produtos'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.black87,
-      ),
-      drawer: const SideMenuDrawer(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddProductSheet(context, ref),
-        backgroundColor: const Color(0xFF128C7E),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Colors.grey.shade50],
-          ),
-        ),
-        child: Column(
-          children: [
-            const CategoriesChipBar(),
-            Expanded(
-              child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : state.products.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: state.products.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final product = state.products[index];
-                            return _buildProductCard(product, controller);
-                          },
-                        ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductCard(Product product, ProductsController controller) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFF128C7E).withOpacity(0.1),
-          child: const Icon(Icons.inventory_2, color: Color(0xFF128C7E)),
-        ),
-        title: Text(
-          product.description,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Text(product.unitMeasure),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (product.sku != null) 
-              Text(product.sku!, style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF128C7E))),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-              onPressed: () => controller.deleteProduct(product),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text('Nenhum produto cadastrado', style: TextStyle(fontSize: 18, color: Colors.grey)),
-        ],
       ),
     );
   }

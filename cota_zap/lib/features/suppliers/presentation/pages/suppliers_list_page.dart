@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cota_zap/core/presentation/widgets/side_menu_drawer.dart';
 import 'package:cota_zap/features/suppliers/presentation/controllers/suppliers_controller.dart';
-import 'package:cota_zap/features/suppliers/presentation/widgets/categories_chip_bar.dart';
+// import 'package:cota_zap/features/suppliers/presentation/widgets/categories_chip_bar.dart'; // Removed as categories are products-only now
 import 'package:cota_zap/drift/database.dart';
 import 'package:cota_zap/core/services/cnpj_service.dart';
 import 'package:cota_zap/core/utils/validators.dart';
@@ -18,7 +18,6 @@ class SuppliersListPage extends ConsumerStatefulWidget {
 class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
   final _formKey = GlobalKey<FormState>();
   
-  // Controladores de texto para o formulário de fornecedor
   late final TextEditingController nameController;
   late final TextEditingController whatsappController;
   late final TextEditingController cnpjController;
@@ -30,6 +29,8 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
   late final TextEditingController neighborhoodController;
   late final TextEditingController zipCodeController;
   late final TextEditingController complementController;
+  final TextEditingController searchController = TextEditingController();
+  final FocusNode searchFocusNode = FocusNode();
   bool isSearching = false;
 
   @override
@@ -61,6 +62,8 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
     neighborhoodController.dispose();
     zipCodeController.dispose();
     complementController.dispose();
+    searchController.dispose();
+    searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -95,23 +98,25 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meus Fornecedores'),
+        title: Text(state.showNetwork ? 'Rede CotaZap' : 'Meus Fornecedores'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black87,
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () => searchFocusNode.requestFocus(),
             icon: const Icon(Icons.search),
           ),
         ],
       ),
       drawer: const SideMenuDrawer(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addSupplier,
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: state.showNetwork 
+          ? null 
+          : FloatingActionButton(
+              onPressed: _addSupplier,
+              backgroundColor: AppTheme.primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -122,7 +127,74 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
         ),
         child: Column(
           children: [
-            const CategoriesChipBar(), // Barra de Categorias
+            // BARRA DE PESQUISA DINÂMICA
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: TextField(
+                controller: searchController,
+                focusNode: searchFocusNode,
+                onChanged: (value) => controller.updateSearchQuery(value),
+                decoration: InputDecoration(
+                  hintText: 'Buscar por Nome, CNPJ, Contato, WhatsApp...',
+                  prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
+                  suffixIcon: searchController.text.isNotEmpty 
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          searchController.clear();
+                          controller.updateSearchQuery('');
+                        },
+                      )
+                    : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                  ),
+                  floatingLabelBehavior: FloatingLabelBehavior.never,
+                ),
+              ),
+            ),
+
+            // SELETOR DE MODO
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0.0),
+              child: SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false, 
+                    label: Text('Meus Contatos'),
+                    icon: Icon(Icons.person_pin_outlined),
+                  ),
+                  ButtonSegment(
+                    value: true, 
+                    label: Text('Rede CotaZap'),
+                    icon: Icon(Icons.public),
+                  ),
+                ],
+                selected: {state.showNetwork},
+                onSelectionChanged: (newSelection) {
+                  controller.toggleNetworkMode();
+                },
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: Colors.grey.shade100,
+                  selectedBackgroundColor: AppTheme.primaryColor,
+                  selectedForegroundColor: Colors.white,
+                  side: BorderSide.none,
+                ),
+              ),
+            ),
+
             Expanded(
               child: state.isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -134,7 +206,7 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                           separatorBuilder: (context, index) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final supplier = state.suppliers[index];
-                            return _buildSupplierCard(supplier, controller);
+                            return _buildSupplierCard(supplier, controller, state.showNetwork);
                           },
                         ),
             ),
@@ -144,7 +216,7 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
     );
   }
 
-  Widget _buildSupplierCard(AppContact supplier, SuppliersController controller) {
+  Widget _buildSupplierCard(AppContact supplier, SuppliersController controller, bool isRede) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black12,
@@ -152,18 +224,34 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-          child: const Icon(Icons.storefront, color: AppTheme.primaryColor),
+          backgroundColor: (isRede ? Colors.orange : AppTheme.primaryColor).withOpacity(0.1),
+          child: Icon(
+            isRede ? Icons.verified_user : Icons.storefront, 
+            color: isRede ? Colors.orange : AppTheme.primaryColor
+          ),
         ),
-        title: Text(
-          supplier.tradeName,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                supplier.tradeName,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            if (isRede)
+              const Badge(
+                label: Text('REDE', style: TextStyle(fontSize: 10)),
+                backgroundColor: Colors.orange,
+              ),
+          ],
         ),
         subtitle: Text(supplier.whatsapp),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.grey),
-          onPressed: () => controller.deleteSupplier(supplier),
-        ),
+        trailing: isRede 
+          ? const Icon(Icons.chevron_right, color: Colors.grey)
+          : IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.grey),
+              onPressed: () => controller.deleteSupplier(supplier),
+            ),
         onTap: () {
           // Edit or details
         },
@@ -172,22 +260,54 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
   }
 
   Widget _buildEmptyState() {
+    final state = ref.read(suppliersControllerProvider);
+    final controller = ref.read(suppliersControllerProvider.notifier);
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.store_mall_directory_outlined, size: 80, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text(
-            'Nenhum fornecedor cadastrado',
-            style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Toque no + para adicionar seu primeiro fornecedor',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              state.showNetwork ? Icons.public_off : Icons.store_mall_directory_outlined, 
+              size: 80, 
+              color: Colors.grey.shade300
+            ),
+            const SizedBox(height: 16),
+            Text(
+              state.searchQuery.isNotEmpty
+                ? 'Nenhum fornecedor encontrado para "${state.searchQuery}"'
+                : (state.showNetwork 
+                    ? 'Nenhum fornecedor verificado na rede no momento.'
+                    : 'Você ainda não cadastrou fornecedores.'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 24),
+            if (!state.showNetwork) ...[
+              ElevatedButton.icon(
+                onPressed: () => controller.toggleNetworkMode(),
+                icon: const Icon(Icons.search),
+                label: const Text('BUSCAR NA REDE COTAZAP'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Ou toque no + para adicionar manualmente.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ] else 
+              TextButton(
+                onPressed: () => controller.toggleNetworkMode(),
+                child: const Text('Voltar para meus contatos'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -225,11 +345,6 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                         icon: const Icon(Icons.close),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Cadastre um fornecedor parceiro para enviar cotações via WhatsApp.',
-                    style: TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
                   Row(
@@ -272,27 +387,10 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                                        if (data.phone != null) {
                                           whatsappController.text = data.phone!.replaceFirst('+55 ', '');
                                        }
-                                       if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Dados importados com sucesso!'))
-                                          );
-                                       }
-                                    } else {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                           const SnackBar(content: Text('Empresa não encontrada ou erro na busca.'))
-                                         );
-                                      }
                                     }
                                  } finally {
-                                    if (context.mounted) {
-                                      setSheetState(() => isSearching = false);
-                                    }
+                                    setSheetState(() => isSearching = false);
                                  }
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                   const SnackBar(content: Text('Informe um CNPJ de 14 dígitos para buscar'))
-                                 );
                               }
                             }, 
                             icon: const Icon(Icons.download),
@@ -323,31 +421,6 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                     controller: emailController, 
                     label: 'E-mail', 
                     icon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (val) {
-                      if (val != null && val.isNotEmpty && !val.contains('@')) return 'E-mail inválido';
-                      return null;
-                    }
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                       Expanded(child: _buildSheetTextField(controller: zipCodeController, label: 'CEP', icon: Icons.pin_drop_outlined, keyboardType: TextInputType.number)),
-                       const SizedBox(width: 8),
-                       Expanded(child: _buildSheetTextField(controller: neighborhoodController, label: 'Bairro', icon: Icons.maps_home_work_outlined)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildSheetTextField(controller: addressController, label: 'Logradouro e Número', icon: Icons.location_on_outlined),
-                  const SizedBox(height: 20),
-                  _buildSheetTextField(controller: complementController, label: 'Complemento (Opcional)', icon: Icons.info_outline),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(flex: 3, child: _buildSheetTextField(controller: cityController, label: 'Cidade', icon: Icons.location_city)),
-                      const SizedBox(width: 8),
-                      Expanded(flex: 1, child: _buildSheetTextField(controller: stateController, label: 'UF', icon: Icons.map)),
-                    ],
                   ),
                   const SizedBox(height: 32),
                   SizedBox(
@@ -377,13 +450,7 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         foregroundColor: Colors.white,
                       ),
-                      child: const Text(
-                        'CADASTRAR FORNECEDOR',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
+                      child: const Text('CADASTRAR FORNECEDOR'),
                     ),
                   ),
                   const SizedBox(height: 24),

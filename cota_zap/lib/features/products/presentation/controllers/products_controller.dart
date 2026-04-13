@@ -10,22 +10,30 @@ import 'package:drift/drift.dart';
 class ProductsState {
   final List<Product> products;
   final bool isLoading;
+  final bool showNetwork;
+  final String searchQuery;
   final String? errorMessage;
 
   ProductsState({
     this.products = const [],
     this.isLoading = false,
+    this.showNetwork = false,
+    this.searchQuery = '',
     this.errorMessage,
   });
 
   ProductsState copyWith({
     List<Product>? products,
     bool? isLoading,
+    bool? showNetwork,
+    String? searchQuery,
     String? errorMessage,
   }) {
     return ProductsState(
       products: products ?? this.products,
       isLoading: isLoading ?? this.isLoading,
+      showNetwork: showNetwork ?? this.showNetwork,
+      searchQuery: searchQuery ?? this.searchQuery,
       errorMessage: errorMessage,
     );
   }
@@ -36,47 +44,73 @@ final productsControllerProvider = NotifierProvider<ProductsController, Products
 class ProductsController extends Notifier<ProductsState> {
   @override
   ProductsState build() {
-    final categoriesState = ref.watch(categoriesControllerProvider);
-    _loadFiltered(categoriesState.selectedCategoryId);
-    return ProductsState(isLoading: true);
+    // Observa o usuário para carga inicial
+    final userId = ref.watch(userIdProvider);
+    
+    // Escuta mudanças de categoria sem resetar o estado do Notifier
+    ref.listen(categoriesControllerProvider, (prev, next) {
+      if (prev?.selectedCategoryId != next.selectedCategoryId) {
+        _loadFiltered(next.selectedCategoryId);
+      }
+    });
+
+    if (userId != null) {
+      // Carga inicial
+      Future.microtask(() {
+        final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
+        _loadFiltered(categoryId);
+      });
+    }
+    
+    return ProductsState(isLoading: userId != null);
   }
 
-  Future<void> _loadFiltered(int? categoryId) async {
+  Future<void> _loadFiltered(int? categoryId, {bool skipSync = false}) async {
     final dao = ref.read(productsDaoProvider);
-    final userRole = ref.read(userRoleProvider);
     final userId = ref.read(userIdProvider);
     
-    List<Product> list;
+    AppLogger.info('Iniciando carga de produtos: UserID=$userId, CategoryID=$categoryId, Network=${state.showNetwork}', tag: 'Products');
     
-    // Na v1.5, o Fornecedor vê seus produtos da Rede. 
-    // O Comprador vê seus produtos privados + sugestões da Rede.
-    if (userRole == UserRole.supplier) {
-      list = await dao.getProductsByOwner(userId ?? '');
-    } else {
-      // Comprador: Vê seus produtos (ownerId) + Produtos da Rede
-      final myProducts = await dao.getProductsByOwner(userId ?? '');
-      final networkProducts = await dao.searchNetworkProducts(''); // Carrega todos da rede para filtrar por categoria se necessário
-      list = [...myProducts, ...networkProducts];
+    state = state.copyWith(isLoading: true);
+    
+    try {
+      final list = await dao.searchUniversal(
+        state.searchQuery, 
+        ownerId: userId, 
+        onlyNetwork: state.showNetwork,
+        categoryId: categoryId,
+      );
+
+      AppLogger.info('Produtos carregados: ${list.length} itens encontrados.', tag: 'Products');
+      state = state.copyWith(products: list, isLoading: false);
+    } catch (e) {
+      AppLogger.error('Erro ao carregar produtos do banco local', error: e, tag: 'Products');
+      state = state.copyWith(isLoading: false, errorMessage: 'Erro ao carregar dados locais.');
     }
     
-    if (categoryId != null) {
-      list = list.where((p) => p.categoryId == categoryId).toList();
-    }
-    
-    state = state.copyWith(products: list, isLoading: false);
-    
-    // Inicia sync remoto em background se necessário
-    if (categoryId != null) {
+    // Sincroniza em background apenas se não viermos de um sync
+    if (!skipSync) {
       _syncFromSupabase(categoryId);
     }
   }
 
-  Future<void> _syncFromSupabase(int categoryId) async {
+  Future<void> _syncFromSupabase(int? categoryId) async {
+    final userId = ref.read(userIdProvider);
+    if (userId == null) return;
+
     final db = ref.read(databaseProvider);
     try {
+      final queryFilter = <String, dynamic>{
+        'or': '(owner_id.eq.$userId,is_from_rede.eq.true)'
+      };
+      
+      if (categoryId != null) {
+        queryFilter['category_id'] = categoryId;
+      }
+
       final remoteProducts = await SupabaseService.fetchTable(
         table: 'products',
-        filter: {'category_id': categoryId},
+        filter: queryFilter,
       );
       
       if (remoteProducts.isNotEmpty) {
@@ -96,21 +130,28 @@ class ProductsController extends Notifier<ProductsState> {
             ),
           );
         }
+        // Force refresh local UI after sync, SKIPPING further syncs to avoid loop
+        await _loadFiltered(categoryId, skipSync: true);
       }
     } catch (e) {
       AppLogger.error('Erro ao sincronizar produtos do Supabase', error: e, tag: 'Products');
     }
   }
 
+  void updateSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+    final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
+    _loadFiltered(categoryId);
+  }
+
+  Future<void> toggleNetworkMode() async {
+    state = state.copyWith(showNetwork: !state.showNetwork, isLoading: true);
+    final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
+    await _loadFiltered(categoryId);
+  }
+
   Future<void> searchNetwork(String query) async {
-    if (query.isEmpty) {
-      await refresh();
-      return;
-    }
-    state = state.copyWith(isLoading: true);
-    final dao = ref.read(productsDaoProvider);
-    final results = await dao.searchNetworkProducts(query);
-    state = state.copyWith(products: results, isLoading: false);
+    updateSearchQuery(query);
   }
 
   Future<void> refresh() async {
@@ -119,7 +160,7 @@ class ProductsController extends Notifier<ProductsState> {
     await _loadFiltered(categoryId);
   }
 
-  Future<void> insertProduct({
+  Future<bool> insertProduct({
     required String description,
     required String unitMeasure,
     String? sku,
@@ -129,77 +170,73 @@ class ProductsController extends Notifier<ProductsState> {
     final dao = ref.read(productsDaoProvider);
     final userRole = ref.read(userRoleProvider);
     final plan = ref.read(planTypeProvider);
-    final userId = ref.read(userIdProvider);
-
-    // Verificação de Limites (v1.5) usando o QuotaService
-    final quotaService = ref.read(quotaServiceProvider);
+    var userId = ref.read(userIdProvider);
     
-    final canAdd = await quotaService.canPerformAction(userId ?? '', plan, QuotaType.products);
-
-    if (!canAdd) {
-      state = state.copyWith(
-        isLoading: false, 
-        errorMessage: 'Limite de produtos atingido no seu plano ($plan). Faça upgrade para cadastrar mais.'
-      );
-      return;
+    if (userId == null) {
+      userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId != null) {
+        ref.read(userIdProvider.notifier).state = userId;
+      }
     }
 
-    try {
-      final companion = ProductsCompanion.insert(
-        description: description,
-        unitMeasure: unitMeasure,
-        packagingType: 'Unidade', 
-        attributesJson: '{}',
-        sku: Value(sku),
-        categoryId: Value(categoryId),
-        ownerId: Value(userId),
-        isFromRede: Value(userRole == UserRole.supplier),
-      );
-      // 1. Tentar salvar remoto PRIMEIRO para obter o ID oficial (bigint) do Supabase
-      try {
-        final List<Map<String, dynamic>> response = await SupabaseService.client.from('products').insert({
-          'description': description,
-          'unit_measure': unitMeasure,
-          'packaging_type': 'Unidade',
-          'attributes_json': '{}',
-          'sku': sku,
-          'category_id': categoryId,
-          'owner_id': userId,
-          'is_from_rede': userRole == UserRole.supplier,
-        }).select();
+    AppLogger.info('Tentando cadastrar novo produto: $description para usuário $userId (Categoria ID: $categoryId)', tag: 'Products');
 
-        if (response.isNotEmpty) {
-          final remoteId = response.first['id'] as int;
-          
-          // 2. Salva localmente com o ID oficial do servidor
-          await dao.insertProduct(ProductsCompanion(
-            id: Value(remoteId), // Usa o ID retornado pelo Supabase
-            description: Value(description),
-            unitMeasure: Value(unitMeasure),
-            packagingType: const Value('Unidade'),
-            attributesJson: const Value('{}'),
-            sku: Value(sku),
-            categoryId: Value(categoryId),
-            ownerId: Value(userId),
-            isFromRede: Value(userRole == UserRole.supplier),
-            isSynced: const Value(true),
-          ));
-        } else {
-          throw Exception('Supabase não retornou o ID do produto.');
-        }
-      } catch (remoteError) {
-        AppLogger.error('Erro ao salvar no Supabase, tentando local...', error: remoteError);
-        // Fallback: Salva local apenas se o remoto falhar (offline mode)
-        final localId = await dao.insertProduct(companion);
-        AppLogger.info('Salvo localmente com ID temporário: $localId');
+    if (userId == null) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Usuário não autenticado. Faça login novamente.');
+      return false;
+    }
+
+    final quotaService = ref.read(quotaServiceProvider);
+    
+    try {
+      final canAdd = await quotaService.canPerformAction(userId, plan, QuotaType.products);
+      if (!canAdd) {
+        state = state.copyWith(isLoading: false, errorMessage: 'Limite de produtos atingido.');
+        return false;
+      }
+    } catch (_) {}
+
+    try {
+      final isFromRede = userRole == UserRole.supplier;
+      
+      final response = await SupabaseService.client.from('products').insert({
+        'description': description,
+        'unit_measure': unitMeasure,
+        'packaging_type': 'Unidade',
+        'attributes_json': '{}',
+        'sku': sku,
+        'category_id': categoryId,
+        'owner_id': userId,
+        'is_from_rede': isFromRede,
+      }).select();
+
+      if (response.isNotEmpty) {
+        final remoteId = response.first['id'] as int;
+        
+        await dao.insertProduct(ProductsCompanion(
+          id: Value(remoteId),
+          description: Value(description),
+          unitMeasure: Value(unitMeasure),
+          packagingType: const Value('Unidade'),
+          attributesJson: const Value('{}'),
+          sku: Value(sku),
+          categoryId: Value(categoryId),
+          ownerId: Value(userId),
+          isFromRede: Value(isFromRede),
+          isSynced: const Value(true),
+        ));
       }
 
-      // Registrar a ação de produto cadastrado
-      await quotaService.recordAction(userId ?? '', QuotaType.products);
+      try {
+        await quotaService.recordAction(userId, QuotaType.products);
+      } catch (_) {}
       
       await refresh();
+      return true;
     } catch (e) {
+      AppLogger.error('Erro fatal ao cadastrar produto no Supabase (Categoria ID: $categoryId): $e', tag: 'Products');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
     }
   }
 
