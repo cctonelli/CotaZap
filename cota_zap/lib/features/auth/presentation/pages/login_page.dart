@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
 import 'package:cota_zap/core/di/injection.dart';
+import 'package:cota_zap/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -58,15 +57,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF128C7E),
+      backgroundColor: const Color(0xFF0F172A),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF075E54), Color(0xFF128C7E)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F172A)],
           ),
         ),
         child: Center(
@@ -77,96 +76,115 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    height: 100,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.bolt,
-                      size: 80,
-                      color: Colors.white,
+                  Hero(
+                    tag: 'logo',
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 120,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.bolt_rounded,
+                          size: 80,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  const SizedBox(height: 24),
+                  Text(
                     'CotaZap',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
                       color: Colors.white,
+                      letterSpacing: -1.5,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Cotações Rápidas no WhatsApp',
+                  Text(
+                    'Elite Procurement & WhatsApp Automation',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      color: const Color(0xFF94A3B8),
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 56),
                   
-                  // Card de Login
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
                     ),
                     child: Column(
                       children: [
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            labelText: 'E-mail',
-                            hintText: 'exemplo@email.com',
-                            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF128C7E)),
+                            labelText: 'E-mail Profissional',
+                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                            hintText: 'comprador@empresa.com',
+                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                            prefixIcon: Icon(Icons.alternate_email_rounded, color: Colors.white.withOpacity(0.5)),
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: Colors.white.withOpacity(0.05),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                               borderSide: BorderSide.none,
                             ),
                           ),
                           validator: (val) => val == null || !val.contains('@') ? 'E-mail inválido' : null,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
+                          style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            labelText: 'Senha',
-                            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF128C7E)),
+                            labelText: 'Senha de Acesso',
+                            labelStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                            prefixIcon: Icon(Icons.lock_person_rounded, color: Colors.white.withOpacity(0.5)),
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: Colors.white.withOpacity(0.05),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                               borderSide: BorderSide.none,
                             ),
                           ),
                           validator: (val) => val == null || val.length < 6 ? 'Mínimo 6 caracteres' : null,
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 40),
                         SizedBox(
                           width: double.infinity,
-                          height: 56,
+                          height: 64,
                           child: ElevatedButton(
                             onPressed: authState.isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF128C7E),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              elevation: 2,
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              elevation: 0,
                             ),
                             child: authState.isLoading 
                                 ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'ENTRAR', 
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.1)
+                                : Text(
+                                    'ACESSAR PLATAFORMA', 
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontWeight: FontWeight.w800, 
+                                      fontSize: 14, 
+                                      letterSpacing: 1.5,
+                                    ),
                                   ),
                           ),
                         ),
@@ -178,12 +196,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Não tem conta?', style: TextStyle(color: Colors.white70)),
+                      Text('Novo na rede?', style: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8))),
                       TextButton(
                         onPressed: () => context.go('/register'),
-                        child: const Text(
-                          'Cadastre-se', 
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                        child: Text(
+                          'Crie sua cotação free', 
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white, 
+                            fontWeight: FontWeight.w800, 
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ],

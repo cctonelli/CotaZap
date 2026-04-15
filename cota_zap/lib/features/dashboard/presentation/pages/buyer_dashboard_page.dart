@@ -108,37 +108,55 @@ class BuyerDashboardPage extends ConsumerWidget {
 
   Widget _buildAppBar(BuildContext context, BuyerDashboardState state) {
     return SliverAppBar(
-      expandedHeight: 120.0,
+      expandedHeight: 140.0,
       pinned: true,
-      backgroundColor: const Color(0xFF2563EB),
+      stretch: true,
+      backgroundColor: AppTheme.primaryColor,
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        title: const Text(
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: Text(
           'Meu Dashboard',
-          style: TextStyle(
+          style: GoogleFonts.plusJakartaSans(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
           ),
         ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF4F46E5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
             ),
-          ),
+            Positioned(
+              right: -20,
+              top: -20,
+              child: CircleAvatar(
+                radius: 80,
+                backgroundColor: Colors.white.withOpacity(0.05),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-        ),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.person_outline, color: Colors.white),
+        Container(
+          margin: const EdgeInsets.only(right: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+          ),
         ),
       ],
     );
@@ -211,19 +229,20 @@ class BuyerDashboardPage extends ConsumerWidget {
   Widget _buildSavingsSummary(BuildContext context, BuyerDashboardState state) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(32),
+        image: DecorationImage(
+          image: const NetworkImage('https://www.transparenttextures.com/patterns/carbon-fibre.png'),
+          opacity: 0.05,
+          colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.1), BlendMode.srcATop),
         ),
-        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E293B).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF0F172A).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -236,45 +255,64 @@ class BuyerDashboardPage extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'ECONOMIA ACUMULADA',
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+                  Text(
+                    'ECONOMIA REAL',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.0,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     _currencyFormat.format(state.totalSavings),
-                    style: const TextStyle(
+                    style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1,
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.5,
                     ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [Colors.emerald.shade400, Colors.emerald.shade700],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.emerald.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.auto_graph, color: Colors.greenAccent, size: 28),
+                child: const Icon(Icons.trending_up_rounded, color: Colors.white, size: 32),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Row(
             children: [
-              const Icon(Icons.info_outline, color: Colors.white38, size: 14),
-              const SizedBox(width: 6),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: const BoxDecoration(color: Colors.emeraldAccent, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
               Text(
-                'Economia total com base nas menores ofertas recebidas.',
-                style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 11),
+                'Performance baseada em ${state.recentQuotations.length} cotações ativas',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -317,34 +355,51 @@ class BuyerDashboardPage extends ConsumerWidget {
 
   Widget _buildQuotaIndicator(String label, double ratio, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.05), width: 1),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: color.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-          const SizedBox(height: 12),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 16),
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                height: 60,
-                width: 60,
+                height: 70,
+                width: 70,
                 child: CircularProgressIndicator(
                   value: ratio,
-                  strokeWidth: 8,
+                  strokeWidth: 10,
+                  strokeCap: StrokeCap.round,
                   backgroundColor: color.withOpacity(0.1),
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
               ),
               Text(
                 '${(ratio * 100).toInt()}%',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: const Color(0xFF1E293B),
+                ),
               ),
             ],
           ),
@@ -394,41 +449,40 @@ class BuyerDashboardPage extends ConsumerWidget {
 
     switch (q.status) {
       case 'draft':
-        statusColor = const Color(0xFF94A3B8); // Slate 400
+        statusColor = const Color(0xFF64748B);
         statusLabel = 'Rascunho';
-        statusIcon = Icons.edit_document;
+        statusIcon = Icons.edit_note_rounded;
         break;
       case 'sent':
-        statusColor = const Color(0xFF3B82F6); // Blue 500
+        statusColor = const Color(0xFF3B82F6);
         statusLabel = 'Enviada';
-        statusIcon = Icons.alternate_email;
+        statusIcon = Icons.send_rounded;
         break;
       case 'analyzing':
-        statusColor = const Color(0xFFF59E0B); // Amber 500
+        statusColor = const Color(0xFFF59E0B);
         statusLabel = 'Analisando';
-        statusIcon = Icons.query_stats;
+        statusIcon = Icons.auto_graph_rounded;
         break;
       case 'finished':
-        statusColor = const Color(0xFF10B981); // Emerald 500
+        statusColor = const Color(0xFF10B981);
         statusLabel = 'Concluída';
-        statusIcon = Icons.verified_user_outlined;
+        statusIcon = Icons.check_circle_rounded;
         break;
       default:
         statusColor = Colors.blueGrey;
         statusLabel = q.status;
-        statusIcon = Icons.help_outline;
+        statusIcon = Icons.help_center_rounded;
     }
     
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: statusColor.withOpacity(0.1), width: 1.5),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withOpacity(0.04),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -436,44 +490,63 @@ class BuyerDashboardPage extends ConsumerWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           onTap: () => context.push('/quotation-detail/${q.id}'),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      colors: [statusColor.withOpacity(0.15), statusColor.withOpacity(0.05)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
                   ),
-                  child: Icon(statusIcon, color: statusColor, size: 24),
+                  child: Icon(statusIcon, color: statusColor, size: 26),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'Cotação #${q.id}',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1E293B)),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                              color: const Color(0xFF1E293B),
+                            ),
                           ),
-                          const SizedBox(width: 8),
                           _buildStatusBadge(statusLabel, statusColor),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Atualizado em ${dateFormat.format(q.date)}',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 14, color: Colors.grey[400]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Atualizado em ${dateFormat.format(q.date)}',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: const Color(0xFF94A3B8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey[300], size: 16),
+                const SizedBox(width: 12),
+                Icon(Icons.chevron_right_rounded, color: Colors.grey[300], size: 28),
               ],
             ),
           ),
