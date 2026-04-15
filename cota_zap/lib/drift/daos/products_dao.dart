@@ -16,31 +16,39 @@ class ProductsDao extends DatabaseAccessor<AppDatabase> with _$ProductsDaoMixin 
   Future updateCategory(ProductCategory category) => update(productCategories).replace(category);
   Future deleteCategory(ProductCategory category) => delete(productCategories).delete(category);
 
-  Future<List<Product>> searchUniversal(String query, {String? ownerId, bool onlyNetwork = false, int? categoryId}) async {
-    final queryLower = query.toLowerCase();
+  Stream<List<Product>> watchUniversal(String query, {String? ownerId, bool onlyNetwork = false, int? categoryId}) {
+    final queryLower = query.toLowerCase().trim();
     
-    // Filtro de base para descrição do produto
-    Expression<bool> filter = products.description.replaceNullWith('').lower().contains(queryLower);
-    
-    if (query.isNotEmpty) {
-      filter = filter | productCategories.name.replaceNullWith('').lower().contains(queryLower);
+    // Filtro de base (Descrição ou Nome da Categoria)
+    Expression<bool> contentFilter;
+    if (queryLower.isEmpty) {
+      contentFilter = const Constant(true);
+    } else {
+      contentFilter = products.description.lower().contains(queryLower) |
+               coalesce([productCategories.name, const Constant('')]).lower().contains(queryLower);
     }
 
-    // Filtro de Categoria (se fornecido)
+    // Filtro de Categoria (se fornecido explicitamente)
+    Expression<bool> categoryFilter = const Constant(true);
     if (categoryId != null) {
-      filter = filter & products.categoryId.equals(categoryId);
+      categoryFilter = products.categoryId.equals(categoryId);
     }
 
     // Filtro de Propriedade/Rede
+    final effectiveOwnerId = ownerId ?? 'unauthenticated';
     Expression<bool> ownershipFilter = onlyNetwork 
         ? products.isFromRede.equals(true) 
-        : products.ownerId.equals(ownerId ?? '???');
+        : (products.ownerId.equals(effectiveOwnerId) | products.isFromRede.equals(true));
 
-    final results = await (select(products).join([
+    final queryObj = select(products).join([
       leftOuterJoin(productCategories, productCategories.id.equalsExp(products.categoryId)),
-    ])..where(filter & ownershipFilter)).get();
+    ])..where(contentFilter & categoryFilter & ownershipFilter);
 
-    return results.map((row) => row.readTable(products)).toList();
+    return queryObj.watch().map((rows) => rows.map((row) => row.readTable(products)).toList());
+  }
+
+  Future<List<Product>> searchUniversal(String query, {String? ownerId, bool onlyNetwork = false, int? categoryId}) {
+    return watchUniversal(query, ownerId: ownerId, onlyNetwork: onlyNetwork, categoryId: categoryId).first;
   }
   
   Future<int> insertProduct(ProductsCompanion product) => into(products).insert(product);

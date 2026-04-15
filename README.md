@@ -1,104 +1,84 @@
-# ⚡ CotaZap - Procurement Inteligente via WhatsApp
+# ⚡ CotaZap - Elite Procurement & WhatsApp Automation
 
 <p align="center">
-  <img src="cota_zap/assets/images/logo.png" alt="CotaZap Logo" width="200"/>
+  <img src="cota_zap/assets/images/logo.png" alt="CotaZap Logo" width="220"/>
 </p>
 
-O **CotaZap** é uma plataforma inovadora de procurement projetada para simplificar e acelerar o processo de cotação de produtos entre compradores e fornecedores utilizando o WhatsApp como canal principal. Diferente de simples enviadores de mensagens, o CotaZap oferece inteligência de dados, análise de preços e uma experiência de usuário focada em produtividade.
+O **CotaZap** transcende o conceito de um simples app de cotação. Ele é uma plataforma de **Inteligência de Suprimentos** desenhada para aniquilar a ineficiência no processo de compras via WhatsApp. Transformamos conversas informais em workflows estruturados e decisões baseadas em dados.
 
 ---
 
-## 🌟 Diferenciais de Mercado (v1.4)
+## 🚀 O Estado da Arte (v1.5)
 
-*   **Fluxo 3-Toques**: Crie e envie cotações para múltiplos fornecedores em segundos.
-*   **Inteligência de Procurement**: Algoritmo que analisa Preço, Prazo de Entrega e Condições de Pagamento para sugerir o "Vencedor".
-*   **Offline-First**: Banco de dados local (Drift) que permite trabalhar sem internet, sincronizando com o Supabase quando online.
-*   **Multi-Perfil**: Um único usuário pode atuar como Comprador ou Fornecedor de forma fluida.
-*   **Parser Automático**: Backend com FastAPI que extrai preços e prazos de mensagens humanas no WhatsApp.
+Atualmente, o CotaZap já opera com um ecossistema robusto que integra o melhor do desenvolvimento mobile e automação de mensageria:
+
+### 💎 Funcionalidades de Core (Desenvolvidas)
+*   **🔑 Arquitetura Multi-User (Roles)**: Sistema baseado em papéis — **Comprador**, **Fornecedor** e **Admin** — com fluxos de interface e segurança totalmente distintos.
+*   **📡 Automação WhatsApp (Evolution API v2)**: Disparos inteligentes de cotações diretamente para fornecedores, simulando comportamento humano para máxima taxa de entrega.
+*   **☁️ Sincronização Híbrida (Drift + Supabase)**: Experiência *Offline-First* com banco local SQLite (Drift) e sincronização em tempo real na nuvem via Supabase.
+*   **📊 Dashboard Estratégico**: Visão panorâmica de cotações em andamento, economias geradas e performance de fornecedores.
+*   **🛒 Gestão de Itens e Unidades**: Sistema flexível de cadastro de produtos com conversão inteligente de unidades de medida.
+*   **🤖 Backend Orquestrador (FastAPI)**: Microatendimento especializado em gerenciar o tráfego pesado de notificações e webhooks.
+*   **🐳 Infraestrutura Dockerizada**: Deploy simplificado de todo o ecossistema (Evolution API, Postgres, Backend) com um único comando.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-### Frontend (Mobile & Web)
-- **Flutter**: Framework para UI nativa em Android, iOS e Web.
-- **Riverpod**: Gerenciamento de estado reativo e robusto.
-- **Drift**: Banco de dados relacional offline (SQLite).
-- **GoRouter**: Navegação declarativa e profunda.
-
-### Backend & Infraestrutura
-- **FastAPI (Python)**: Engine de processamento de mensagens e webhooks.
-- **Supabase**: Banco de dados online, Autenticação e Armazenamento.
-- **Evolution API**: Integração profissional com a API oficial/não-oficial do WhatsApp.
+| Camada | Tecnologia | Propósito |
+| :--- | :--- | :--- |
+| **Mobile** | Flutter (Dart) | UI Premium e Performance Multiplataforma |
+| **Local DB** | Drift (SQLite) | Persistência ultra-rápida e offline |
+| **Cloud/Auth** | Supabase | Gestão de Usuários e Sincronização |
+| **Mensageria** | Evolution API v2 | Motor de WhatsApp de última geração |
+| **Backend** | FastAPI (Python) | Gateway de integração e processamento pesado |
+| **Infra** | Docker & Compose | Orquestração de containers |
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🎯 AS MISSÕES: Rumo ao Topo do Mercado
 
-```bash
-CotaZap/
-├── cota_zap/           # Aplicativo Flutter (Frontend)
-│   ├── lib/            # Código fonte Dart
-│   └── assets/         # Imagens, Ícones e Logo
-├── backend/            # API FastAPI (Python)
-│   ├── app/            # Lógica de processamento e webhooks
-│   └── requirements.txt
-├── supabase/           # Migrations e configurações do banco online
-└── docker-compose.yml  # Orquestração para ambiente local
-```
+Para transformar o CotaZap na ferramenta **Nº 1** global, estabelecemos as seguintes missões de elite:
 
----
+### 🟢 MISSÃO 1: Inteligência Artificial Cognitiva (AI-OCR)
+**Objetivo**: Eliminar o registro manual.
+- Implementação de IA capaz de ler tabelas de preços em fotos (JPG) ou arquivos PDF enviados por fornecedores e alimentar automaticamente o sistema de comparação.
 
-## 🚀 Como Executar
+### 🔵 MISSÃO 2: Marketplace "Rede CotaZap"
+**Objetivo**: Expansão de rede.
+- Criar um diretório inteligente onde compradores podem "descobrir" novos fornecedores baseados em geolocalização e reputação dentro da plataforma.
 
-### 1. Requisitos Prévios
-- Flutter SDK (v3.16+)
-- Python 3.10+
-- Acesso a um projeto Supabase
+### 🟡 MISSÃO 3: Analytics de Mercado e Tendências
+**Objetivo**: Prever o futuro das compras.
+- Gráficos comparativos de variação de preços de commodities e sugestão inteligente de "Momento de Compra" (Stock Predictor).
 
-### 2. Frontend (Flutter)
-```bash
-cd cota_zap
-flutter pub get
-flutter run -d chrome  # Para Web
-# ou
-flutter run            # Para Mobile
-```
-
-### 3. Backend (FastAPI)
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+### 🔴 MISSÃO 4: Workflow de Pagamento Integrado
+**Objetivo**: Fechar o ciclo.
+- Integração de Gateway de Pagamento (Pix/Boleto) diretamente na confirmação do pedido, permitindo que o ciclo de compra seja 100% digital e seguro.
 
 ---
 
-## 📈 Roadmap & Funcionalidades
+## ⚙️ Configuração Rápida (Ambiente Elite)
 
-- [x] Onboarding com escolha de perfil (Comprador/Fornecedor)
-- [x] Menu Lateral (Side Drawer) dinâmico
-- [x] Sincronização básica com Supabase
-- [x] Engine de análise de preços (Procurement Engine)
-- [ ] Módulo de Pagamento In-App (Freemium)
-- [ ] Dashboard avançado de BI (Economia Total)
-- [ ] Integração com Catálogo de Produtos da Rede CotaZap
-
----
-
-## 🤝 Contribuição
-
-O CotaZap é um projeto focado na produtividade do comprador brasileiro. Sinta-se à vontade para abrir Issues ou enviar Pull Requests.
+1. **Infraestrutura**:
+   ```bash
+   docker-compose up -d
+   ```
+2. **Backend**:
+   Certifique-se que o `.env` no `backend/` está configurado com suas chaves Supabase.
+3. **App**:
+   ```bash
+   cd cota_zap
+   flutter run
+   ```
 
 ---
 
-## 📄 Licença
-
-Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+## 🤝 O Compromisso CotaZap
+Nossa missão é dar ao comprador o **superpoder** de negociar com 100 fornecedores com o esforço de quem fala com apenas um. Se é eficiente, está no CotaZap.
 
 ---
 <p align="center">
-  Desenvolvido por <strong>CotaZap Team - 2026</strong>
+  <strong>CotaZap Team - 2026</strong><br>
+  <em>Construindo o futuro do Procurement.</em>
 </p>

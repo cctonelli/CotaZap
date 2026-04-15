@@ -62,39 +62,65 @@ class CategoriesController extends Notifier<CategoriesState> {
 
       if (remoteCats.isNotEmpty) {
         final List<ProductCategory> tempList = [];
-        
         for (var cat in remoteCats) {
+          final int rawId = cat['id'] is String ? int.parse(cat['id']) : (cat['id'] as int);
+          final String catName = cat['name']?.toString() ?? 'Sem Nome';
+          
+          try {
+            // Verifica se existe uma categoria local com o mesmo NOME mas ID diferente
+            final existingByName = await (db.select(db.productCategories)
+              ..where((t) => t.name.equals(catName))).getSingleOrNull();
+
+            if (existingByName != null && existingByName.id != rawId) {
+              AppLogger.warning('Corrigindo ID da categoria "$catName": Local ${existingByName.id} -> Remoto $rawId', tag: 'Categories');
+              await (db.delete(db.productCategories)..where((t) => t.id.equals(existingByName.id))).go();
+            }
+
+            await db.into(db.productCategories).insertOnConflictUpdate(
+              ProductCategoriesCompanion(
+                id: Value(rawId),
+                name: Value(catName),
+                description: Value(cat['description']?.toString()),
+                iconName: Value((cat['icon_name'] ?? cat['iconName'])?.toString()),
+                isSynced: const Value(true),
+              ),
+            );
+          } catch (e) {
+            AppLogger.error('Falha ao sincronizar categoria individual: $catName', error: e, tag: 'Categories');
+          }
+          
           final mappedCat = ProductCategory(
-            id: cat['id'],
-            name: cat['name'] ?? 'Sem Nome',
-            description: cat['description'],
-            iconName: cat['icon_name'] ?? cat['iconName'],
+            id: rawId,
+            name: catName,
+            description: cat['description']?.toString(),
+            iconName: (cat['icon_name'] ?? cat['iconName'])?.toString(),
             isSynced: true,
             lastUpdated: DateTime.now(),
           );
           tempList.add(mappedCat);
-
-          try {
-            await db.into(db.productCategories).insertOnConflictUpdate(
-              ProductCategoriesCompanion(
-                id: Value(cat['id']),
-                name: Value(cat['name'] ?? 'Sem Nome'),
-                description: Value(cat['description']),
-                iconName: Value(cat['icon_name'] ?? cat['iconName']),
-                isSynced: const Value(true),
-              ),
-            );
-          } catch (insertError) {
-            // No ambiente web/chrome, o erro de sql.js cairá aqui. 
-            // Ignoramos o erro de cache e seguimos com a tempList remota.
-          }
         }
         
-        // Se chegamos aqui, temos dados (pode ser do cache local atualizado ou da tempList remota)
-        // Priorizamos o banco local se ele funcionar, senão usamos a tempList
+        // 3. Limpeza de categorias órfãs (o que está local mas não está no remoto)
+        try {
+          final localCats = await (db.select(db.productCategories)).get();
+          final remoteIds = remoteCats.map((c) => 
+            c['id'] is String ? int.parse(c['id']) : (c['id'] as int)
+          ).toSet();
+
+          for (var local in localCats) {
+            if (!remoteIds.contains(local.id)) {
+              AppLogger.warning('Removendo categoria órfã local: ${local.name} (ID: ${local.id})', tag: 'Categories');
+              await (db.delete(db.productCategories)..where((t) => t.id.equals(local.id))).go();
+            }
+          }
+        } catch (e) {
+          AppLogger.error('Erro ao limpar categorias órfãs', error: e, tag: 'Categories');
+        }
+
+        // 4. Atualiza o estado com os dados finais do banco local
         try {
           final updatedList = await (db.select(db.productCategories)).get();
-          state = state.copyWith(categories: updatedList.isNotEmpty ? updatedList : tempList, isLoading: false);
+          state = state.copyWith(categories: updatedList, isLoading: false);
         } catch (_) {
           state = state.copyWith(categories: tempList, isLoading: false);
         }

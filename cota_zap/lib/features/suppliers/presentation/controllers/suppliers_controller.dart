@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cota_zap/drift/database.dart';
 import 'package:cota_zap/core/di/injection.dart';
@@ -40,12 +41,26 @@ class SuppliersState {
 final suppliersControllerProvider = NotifierProvider<SuppliersController, SuppliersState>(SuppliersController.new);
 
 class SuppliersController extends Notifier<SuppliersState> {
+  StreamSubscription? _subscription;
+
   @override
   SuppliersState build() {
+    // Assiste ao userId. Se mudar (login/logout), o build re-executa.
     final userId = ref.watch(userIdProvider);
     
+    // Assiste a mudanças de categoria global (se houver, mas fornecedores não usam mais)
+    
+    ref.onDispose(() {
+      _subscription?.cancel();
+    });
+
+    // Se o usuário logou, inicializa a carga. 
+    // Usamos microtask para não disparar efeitos colaterais durante a fase de construção.
     if (userId != null) {
       Future.microtask(() => _init());
+    } else {
+      // Se deslogou, limpa a lista.
+      Future.microtask(() => state = SuppliersState(isLoading: false));
     }
     
     return SuppliersState(isLoading: userId != null);
@@ -56,20 +71,10 @@ class SuppliersController extends Notifier<SuppliersState> {
     if (userId == null) return;
 
     // 1. Carregar local primeiro
-    await _loadFiltered();
+    _loadFiltered();
     
     // 2. Sync apenas o que é do usuário + Rede Oficial
     await _syncFromSupabase();
-  }
-
-  Future<void> toggleNetworkMode() async {
-    state = state.copyWith(showNetwork: !state.showNetwork, isLoading: true);
-    await _loadFiltered();
-  }
-
-  void updateSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
-    _loadFiltered();
   }
 
   Future<void> _syncFromSupabase() async {
@@ -83,7 +88,7 @@ class SuppliersController extends Notifier<SuppliersState> {
       final remoteSupps = await SupabaseService.fetchTable(
         table: 'app_contacts',
         filter: {
-          'or': '(owner_id.eq.$userId,is_rede_cotazap.eq.true)'
+          'or': 'owner_id.eq.$userId,is_rede_cotazap.eq.true'
         }
       );
       
@@ -116,42 +121,41 @@ class SuppliersController extends Notifier<SuppliersState> {
             ),
           );
         }
-        await _loadFiltered();
+        _loadFiltered();
       }
     } catch (e) {
       AppLogger.error('Erro sync', error: e);
     }
   }
 
-  Future<void> _loadFiltered() async {
-    final dao = ref.read(contactsDaoProvider);
+  void _loadFiltered() {
+    // Evita cancelamento se os parâmetros forem idênticos (opcional, mas bom)
+    _subscription?.cancel();
+    
     final userId = ref.read(userIdProvider);
-    final userRole = ref.read(userRoleProvider);
+    if (userId == null) return;
+
+    AppLogger.info('Iniciando observação de fornecedores (Network: ${state.showNetwork}, Query: ${state.searchQuery})', tag: 'Suppliers');
     
-    AppLogger.info('Carregando fornecedores filtrados (Network: ${state.showNetwork}, Query: ${state.searchQuery})', tag: 'Suppliers');
-    
-    List<AppContact> list;
-    try {
-      if (userRole == UserRole.admin) {
-        list = await (dao.select(dao.appContacts)).get();
-      } else {
-        if (userId == null && !state.showNetwork) {
-          list = [];
-        } else {
-          // Usa a busca universal recém-implementada
-          list = await dao.searchUniversal(
-            state.searchQuery, 
-            ownerId: userId, 
-            onlyRede: state.showNetwork
-          );
-        }
-      }
+    final dao = ref.read(contactsDaoProvider);
+    _subscription = dao.watchUniversal(
+      state.searchQuery, 
+      ownerId: userId, 
+      onlyRede: state.showNetwork
+    ).listen((list) {
       state = state.copyWith(suppliers: list, isLoading: false);
-      AppLogger.success('Lista de fornecedores atualizada: ${list.length} itens.', tag: 'Suppliers');
-    } catch (e) {
-      AppLogger.error('Erro ao carregar lista de fornecedores', error: e, tag: 'Suppliers');
-      state = state.copyWith(isLoading: false, errorMessage: 'Erro ao listar contatos.');
-    }
+      AppLogger.success('Stream de fornecedores atualizada: ${list.length} itens.', tag: 'Suppliers');
+    });
+  }
+
+  Future<void> toggleNetworkMode() async {
+    state = state.copyWith(showNetwork: !state.showNetwork, isLoading: true);
+    _loadFiltered();
+  }
+
+  void updateSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+    _loadFiltered();
   }
 
   Future<bool> addSupplier({
@@ -225,9 +229,7 @@ class SuppliersController extends Notifier<SuppliersState> {
       ));
 
       AppLogger.success('Fornecedor salvo localmente.', tag: 'Suppliers');
-      
-      // 3. Recarregar lista
-      await _loadFiltered();
+      state = state.copyWith(isLoading: false); // Garante que o loading pare após sucesso
       return true;
     } catch (e) {
       AppLogger.error('Erro ao cadastrar fornecedor', error: e, tag: 'Suppliers');
@@ -237,12 +239,12 @@ class SuppliersController extends Notifier<SuppliersState> {
   }
 
   Future<void> forceRefresh() async {
+    state = state.copyWith(isLoading: true, errorMessage: null); // Limpa erros no refresh manual
     await _init();
   }
 
   Future<void> deleteSupplier(AppContact supplier) async {
     state = state.copyWith(isLoading: true);
     await ref.read(contactsDaoProvider).deleteContact(supplier);
-    await _loadFiltered();
   }
 }

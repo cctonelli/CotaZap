@@ -214,17 +214,52 @@ class NewQuotationController extends Notifier<NewQuotationState> {
         AppLogger.error('Erro ao replicar cotação para o Supabase', error: supabaseError, tag: 'Supabase');
       }
 
-      // 4. Disparar para Evolution API (Webhook)
+      // 4. Disparar mensagens via Evolution API → Backend CotaZap
       try {
-        await dio.post('/webhooks/evolution', data: {
-          'quotationId': quotationId,
-          'buyerWhatsApp': buyer.whatsapp,
-          'message': _generateWhatsAppMessage(),
-          'itemsCount': state.selectedProducts.length,
-          'targetSupplierIds': state.selectedSupplierIds, // Enviando IDs dos fornecedores alvo
-        });
+        // Buscar dados completos dos fornecedores selecionados no Drift (SQLite local)
+        // O backend precisa de trade_name + whatsapp para disparar — não tem acesso ao nosso DB
+        final suppliersDao = ref.read(suppliersDaoProvider);
+        final List<Map<String, String>> suppliersPayload = [];
+
+        if (state.selectedSupplierIds.isNotEmpty) {
+          for (final id in state.selectedSupplierIds) {
+            final supplier = await suppliersDao.getContactById(id);
+            if (supplier != null && supplier.whatsapp.isNotEmpty) {
+              suppliersPayload.add({
+                'trade_name': supplier.tradeName,
+                'whatsapp': supplier.whatsapp,
+              });
+            }
+          }
+        }
+
+        if (suppliersPayload.isEmpty) {
+          AppLogger.warning(
+            'Nenhum fornecedor com WhatsApp válido para disparar.',
+            tag: 'Evolution API',
+          );
+        } else {
+          final response = await dio.post('/webhooks/send-quotation', data: {
+            'quotation_id': quotationId,
+            'message': _generateWhatsAppMessage(),
+            'suppliers': suppliersPayload,
+            'buyer_whatsapp': buyer.whatsapp,
+          });
+
+          final sent = response.data?['sent'] ?? 0;
+          final total = response.data?['total_suppliers'] ?? 0;
+          AppLogger.success(
+            'WhatsApp: $sent/$total mensagens enviadas com sucesso!',
+            tag: 'Evolution API',
+          );
+        }
       } catch (apiError) {
-        AppLogger.error('Evolution API Error', error: apiError, tag: 'API');
+        // Registro de erro mas NÃO bloqueia o fluxo — cotação já foi salva
+        AppLogger.error(
+          'Falha ao disparar WhatsApp via Evolution API',
+          error: apiError,
+          tag: 'Evolution API',
+        );
       }
 
       // Registrar uso de quotas após sucesso

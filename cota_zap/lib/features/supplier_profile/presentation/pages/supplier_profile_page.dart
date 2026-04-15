@@ -32,6 +32,7 @@ class _SupplierProfilePageState extends ConsumerState<SupplierProfilePage> {
   bool _isLoading = false;
   bool _isSearchingCnpj = false;
   bool _isBuyerToo = false;
+  int? _contactId; // ID real da tabela app_contacts (BigInt no Supabase)
 
   @override
   void initState() {
@@ -44,40 +45,85 @@ class _SupplierProfilePageState extends ConsumerState<SupplierProfilePage> {
     try {
       final user = SupabaseService.client.auth.currentUser;
       if (user == null) return;
+      
+      final userId = ref.read(userIdProvider) ?? user.id;
 
-      // 1. Busca perfil mestre (role)
-      final profile = await SupabaseService.client
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
+      // 1. Papel (Híbrido) - Isolado
+      try {
+        final profile = await SupabaseService.client
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 5));
 
-      if (profile != null) {
-        setState(() => _isBuyerToo = profile['role'].toString().contains('buyer'));
+        if (profile != null && mounted) {
+          setState(() => _isBuyerToo = profile['role'].toString().contains('buyer'));
+        }
+      } catch (e) {
+        debugPrint('⚠️ Perfil mestre inacessível: $e');
       }
 
-      // 2. Busca dados detalhados na tabela unificada de contatos
-      final contact = await ref.read(contactsDaoProvider).getMyProfile(user.id);
+      // 2. Dados Detalhados (Fornecedor)
+      var contact = await ref.read(contactsDaoProvider).getMyProfile(userId, email: user.email, isSupplier: true);
 
-      if (contact != null) {
+      if (contact == null) {
+        debugPrint('🔍 Buscando dados de fornecedor no Supabase...');
+        try {
+          final remoteData = await SupabaseService.client
+              .from('app_contacts')
+              .select()
+              .eq('owner_id', userId)
+              .eq('is_supplier', true)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 10));
+
+          if (remoteData != null) {
+            await ref.read(contactsDaoProvider).upsertContact(AppContactsCompanion(
+              id: drift.Value(remoteData['id']),
+              tradeName: drift.Value(remoteData['trade_name'] ?? ''),
+              cnpjCpf: drift.Value(remoteData['cnpj_cpf']),
+              contactName: drift.Value(remoteData['contact_name']),
+              whatsapp: drift.Value(remoteData['whatsapp']),
+              email: drift.Value(remoteData['email']),
+              ownerId: drift.Value(remoteData['owner_id']),
+              isSupplier: const drift.Value(true),
+              isSynced: const drift.Value(true),
+            ));
+            contact = await ref.read(contactsDaoProvider).getMyProfile(userId, isSupplier: true);
+          }
+        } catch (e) {
+          debugPrint('❌ Erro ao baixar dados de fornecedor: $e');
+        }
+      }
+
+      final contactData = contact;
+      if (contactData != null && mounted) {
         setState(() {
-          _cnpjController.text = contact.cnpjCpf ?? '';
-          _tradeNameController.text = contact.tradeName;
-          _contactNameController.text = contact.contactName ?? '';
-          _whatsappController.text = (contact.whatsapp).replaceFirst('+55 ', '');
-          _emailController.text = contact.email ?? '';
-          _zipCodeController.text = contact.zipCode ?? '';
-          _neighborhoodController.text = contact.neighborhood ?? '';
-          _addressController.text = contact.address ?? '';
-          _complementController.text = contact.complement ?? '';
-          _cityController.text = contact.city ?? '';
-          _stateController.text = contact.state ?? '';
+          _contactId = contactData.id;
+          _cnpjController.text = contactData.cnpjCpf ?? '';
+          _tradeNameController.text = contactData.tradeName;
+          _contactNameController.text = contactData.contactName ?? '';
+          
+          String phone = contactData.whatsapp ?? '';
+          if (phone.startsWith('+55 ')) phone = phone.replaceFirst('+55 ', '');
+          _whatsappController.text = phone;
+          
+          _emailController.text = contactData.email ?? user.email ?? '';
+          _zipCodeController.text = contactData.zipCode ?? '';
+          _neighborhoodController.text = contactData.neighborhood ?? '';
+          _addressController.text = contactData.address ?? '';
+          _complementController.text = contactData.complement ?? '';
+          _cityController.text = contactData.city ?? '';
+          _stateController.text = contactData.state ?? '';
         });
+      } else if (mounted) {
+        _emailController.text = user.email ?? '';
       }
     } catch (e) {
       AppLogger.error('Erro ao carregar perfil de fornecedor', error: e);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -135,26 +181,37 @@ class _SupplierProfilePageState extends ConsumerState<SupplierProfilePage> {
       ));
 
       // 2. Salva no Supabase (Base Online)
-      await SupabaseService.updateProfile(
-        table: 'app_contacts',
-        data: {
-          'owner_id': userId,
-          'trade_name': _tradeNameController.text,
-          'cnpj_cpf': _cnpjController.text,
-          'contact_name': _contactNameController.text,
-          'whatsapp': '+55 ${_whatsappController.text}',
-          'email': _emailController.text,
-          'zip_code': _zipCodeController.text,
-          'neighborhood': _neighborhoodController.text,
-          'address': _addressController.text,
-          'complement': _complementController.text,
-          'city': _cityController.text,
-          'state': _stateController.text,
-          'is_buyer': _isBuyerToo,
-          'is_supplier': true,
-          'active': true,
-        },
-      );
+      final Map<String, dynamic> supabaseData = {
+        'owner_id': userId,
+        'trade_name': _tradeNameController.text,
+        'cnpj_cpf': _cnpjController.text,
+        'contact_name': _contactNameController.text,
+        'whatsapp': '+55 ${_whatsappController.text}',
+        'email': _emailController.text,
+        'zip_code': _zipCodeController.text,
+        'neighborhood': _neighborhoodController.text,
+        'address': _addressController.text,
+        'complement': _complementController.text,
+        'city': _cityController.text,
+        'state': _stateController.text,
+        'is_buyer': _isBuyerToo,
+        'is_supplier': true,
+        'active': true,
+      };
+
+      if (_contactId != null) {
+        supabaseData['id'] = _contactId;
+      }
+
+      final response = await SupabaseService.client
+          .from('app_contacts')
+          .upsert(supabaseData)
+          .select('id')
+          .single();
+      
+      if (response != null && response['id'] != null) {
+        _contactId = response['id'] as int;
+      }
 
       // 3. Atualiza a tabela mestra de perfis para habilitar o redirecionamento híbrido
       await SupabaseService.client.from('profiles').update({

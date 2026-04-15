@@ -16,15 +16,34 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
 
   Stream<List<AppContact>> watchAll() => select(appContacts).watch();
   
-  // Assiste apenas fornecedores do usuário logado
-  Stream<List<AppContact>> watchSuppliers(String ownerId) {
-    return (select(appContacts)
-          ..where((t) => t.isSupplier.equals(true) & t.ownerId.equals(ownerId)))
-        .watch();
+  // Assiste fornecedores do usuário logado, filtrados por categorias ou produtos se fornecidos
+  Stream<List<AppContact>> watchSuppliers(String ownerId, {List<int>? categoryIds, List<int>? productIds}) {
+    var query = select(appContacts).join([
+      leftOuterJoin(db.supplierCategories, db.supplierCategories.supplierId.equalsExp(appContacts.id)),
+      leftOuterJoin(db.productSuppliers, db.productSuppliers.supplierId.equalsExp(appContacts.id)),
+    ]);
+
+    query.where(appContacts.isSupplier.equals(true) & appContacts.ownerId.equals(ownerId));
+
+    if ((categoryIds != null && categoryIds.isNotEmpty) || (productIds != null && productIds.isNotEmpty)) {
+      Expression<bool> filter = const Constant(false);
+      
+      if (categoryIds != null && categoryIds.isNotEmpty) {
+        filter = filter | db.supplierCategories.categoryId.isIn(categoryIds);
+      }
+      
+      if (productIds != null && productIds.isNotEmpty) {
+        filter = filter | db.productSuppliers.productId.isIn(productIds);
+      }
+      
+      query.where(filter);
+    }
+
+    // Usamos distinct para não repetir fornecedores se eles baterem em mais de uma categoria/produto
+    return query.map((row) => row.readTable(appContacts)).watch().map((list) => list.toSet().toList());
   }
 
   // Assiste fornecedores da Rede CotaZap (Globais/Verificados)
-  // Nota: Aqui filtramos onde ownerId é nulo ou pertence ao sistema Admin
   Stream<List<AppContact>> watchRedeSuppliers() {
     return (select(appContacts)
           ..where((t) => t.isSupplier.equals(true) & t.ownerId.isNull())
@@ -32,12 +51,23 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
         .watch();
   }
 
-  // Assiste fornecedores recomendados por categoria
+  // Assiste fornecedores recomendados por categoria na Rede
   Stream<List<AppContact>> watchRecommendedSuppliers(List<int> categoryIds) {
-    // Para simplificar agora, pegamos da rede e filtramos no stream ou SQL se possível.
-    // Como a tabela app_contacts não tem categoriaIds direto (está em SupplierCategories),
-    // por enquanto retornamos a rede completa ordenada por score.
-    return watchRedeSuppliers();
+    if (categoryIds.isEmpty) return watchRedeSuppliers();
+
+    final query = select(appContacts).join([
+      innerJoin(db.supplierCategories, db.supplierCategories.supplierId.equalsExp(appContacts.id)),
+    ]);
+
+    query.where(
+      appContacts.isSupplier.equals(true) & 
+      appContacts.ownerId.isNull() & 
+      db.supplierCategories.categoryId.isIn(categoryIds)
+    );
+
+    query.orderBy([OrderingTerm(expression: appContacts.priorityScore, mode: OrderingMode.desc)]);
+
+    return query.map((row) => row.readTable(appContacts)).watch().map((list) => list.toSet().toList());
   }
 
   // Busca o perfil do usuário logado (Usa o e-mail do Auth como âncora de segurança + owner_id)
@@ -68,24 +98,35 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
   }
 
   // Busca Universal de Fornecedores/Contatos (CNPJ, Nome, WhatsApp, etc)
-  Future<List<AppContact>> searchUniversal(String query, {String? ownerId, bool onlyRede = false}) {
-    final queryLower = query.toLowerCase();
+  Stream<List<AppContact>> watchUniversal(String query, {String? ownerId, bool onlyRede = false}) {
+    final queryLower = query.toLowerCase().trim();
     var q = select(appContacts);
     
     q.where((t) {
-      final matchesQuery = t.tradeName.replaceNullWith('').lower().contains(queryLower) |
-                           t.cnpjCpf.replaceNullWith('').lower().contains(queryLower) |
-                           t.contactName.replaceNullWith('').lower().contains(queryLower) |
-                           t.whatsapp.replaceNullWith('').lower().contains(queryLower) |
-                           t.email.replaceNullWith('').lower().contains(queryLower);
-      
-      Expression<bool> filter;
-      if (onlyRede) {
-        filter = matchesQuery & t.ownerId.isNull() & t.isSupplier.equals(true);
+      // Filtro de conteúdo (Pesquisa dinâmica)
+      Expression<bool> contentFilter;
+      if (queryLower.isEmpty) {
+        contentFilter = const Constant(true);
       } else {
-        filter = matchesQuery & t.ownerId.equals(ownerId ?? '???') & t.isSupplier.equals(true);
+        contentFilter = t.tradeName.lower().contains(queryLower) |
+                        coalesce([t.cnpjCpf, const Constant('')]).contains(queryLower) |
+                        coalesce([t.contactName, const Constant('')]).lower().contains(queryLower) |
+                        t.whatsapp.contains(queryLower) |
+                        coalesce([t.email, const Constant('')]).lower().contains(queryLower);
       }
-      return filter;
+      
+      Expression<bool> ownershipFilter;
+      if (onlyRede) {
+        // Apenas Rede Oficial (Verificados)
+        ownershipFilter = (t.ownerId.isNull() | t.isRedeCotazap.equals(true)) & t.isSupplier.equals(true);
+      } else {
+        // Meus Contatos: Meus cadastros PRIVADOS + cadastros da REDE que estão locais
+        // CRÍTICO: Garantir que se ownerId for nulo (não logado), não quebre a query
+        final effectiveOwnerId = ownerId ?? 'unauthenticated';
+        ownershipFilter = (t.ownerId.equals(effectiveOwnerId) | t.isRedeCotazap.equals(true)) & t.isSupplier.equals(true);
+      }
+      
+      return contentFilter & ownershipFilter;
     });
 
     q.orderBy([
@@ -93,7 +134,11 @@ class ContactsDao extends DatabaseAccessor<AppDatabase> with _$ContactsDaoMixin 
       (t) => OrderingTerm(expression: t.tradeName),
     ]);
 
-    return q.get();
+    return q.watch();
+  }
+
+  Future<List<AppContact>> searchUniversal(String query, {String? ownerId, bool onlyRede = false}) {
+    return watchUniversal(query, ownerId: ownerId, onlyRede: onlyRede).first;
   }
 
   // Deleta um contato

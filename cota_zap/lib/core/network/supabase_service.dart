@@ -66,7 +66,11 @@ class SupabaseService {
       
       if (filter != null) {
         filter.forEach((key, value) {
-          query = query.eq(key, value);
+          if (key == 'or') {
+            query = query.or(value as String);
+          } else {
+            query = query.eq(key, value);
+          }
         });
       }
       

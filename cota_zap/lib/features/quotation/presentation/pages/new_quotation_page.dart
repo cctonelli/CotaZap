@@ -55,7 +55,7 @@ class NewQuotationPage extends ConsumerWidget {
             TextField(
               controller: searchController,
               onSubmitted: (val) async {
-                final found = await productsDao.searchProducts(val);
+                final found = await productsDao.searchUniversal(val, ownerId: ref.read(userIdProvider));
                 if (found.isNotEmpty) {
                   controller.addProduct(found.first);
                   searchController.clear();
@@ -219,8 +219,13 @@ class NewQuotationPage extends ConsumerWidget {
   }
 
   Widget _buildSupplierSelection(BuildContext context, NewQuotationState state, NewQuotationController controller, ContactsDao dao, String? userId) {
+    final categoryIds = state.selectedProducts.keys.map((p) => p.categoryId).whereType<int>().toSet().toList();
+    final productIds = state.selectedProducts.keys.map((p) => p.id).toSet().toList();
+
     return StreamBuilder<List<AppContact>>(
-      stream: userId != null ? dao.watchSuppliers(userId) : const Stream.empty(),
+      stream: userId != null 
+          ? dao.watchSuppliers(userId, categoryIds: categoryIds, productIds: productIds) 
+          : const Stream.empty(),
       builder: (context, snapshot) {
         final suppliers = snapshot.data ?? [];
         if (suppliers.isEmpty) return const Text('Nenhum fornecedor cadastrado.', style: TextStyle(color: Colors.grey));

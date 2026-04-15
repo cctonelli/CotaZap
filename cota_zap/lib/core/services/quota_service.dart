@@ -36,7 +36,7 @@ class QuotaService {
 
     // Se não existir, inicializa
     if (quota == null) {
-      await _initializeDefaultQuotas(userId);
+      await _initializeDefaultQuotas(userId, plan: plan);
       quota = await _quotasDao.getQuota(userId, type.value);
     }
 
@@ -49,7 +49,7 @@ class QuotaService {
       
       if (lastReset.day != now.day || lastReset.month != now.month || lastReset.year != now.year) {
         // Reseta conforme o plano do usuário (se for premium, limite é alto)
-        final newLimit = plan == 'premium' ? 9999 : (type == QuotaType.quotations ? 2 : 10);
+        final newLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : (type == QuotaType.quotations ? 2 : 10);
         await _quotasDao.resetQuota(userId, type.value, newLimit);
         return true;
       }
@@ -86,19 +86,30 @@ class QuotaService {
     return (quota.usedCount / quota.limitCount).clamp(0.0, 1.0);
   }
 
-  Future<void> _initializeDefaultQuotas(String userId) async {
+  Future<void> _initializeDefaultQuotas(String userId, {String plan = 'free'}) async {
+    int productLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : 50;
+    int quotationLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : 2;
+    int whatsappLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : 10;
+
     final defaults = [
       UsageQuotasCompanion.insert(
         ownerId: userId,
         quotaType: QuotaType.quotations.value,
-        limitCount: 2,
+        limitCount: quotationLimit,
         usedCount: const Value(0),
         lastResetAt: Value(DateTime.now()),
       ),
       UsageQuotasCompanion.insert(
         ownerId: userId,
         quotaType: QuotaType.whatsappMessages.value,
-        limitCount: 10,
+        limitCount: whatsappLimit,
+        usedCount: const Value(0),
+        lastResetAt: Value(DateTime.now()),
+      ),
+      UsageQuotasCompanion.insert(
+        ownerId: userId,
+        quotaType: QuotaType.products.value,
+        limitCount: productLimit,
         usedCount: const Value(0),
         lastResetAt: Value(DateTime.now()),
       ),
@@ -111,11 +122,13 @@ class QuotaService {
 
   Future<void> syncQuotas(String userId, String plan) async {
     // Atualiza limites locais no banco Drift baseado no plano
-    int quotationLimit = (plan == 'premium' || plan == 'profissional') ? 9999 : 5;
-    int whatsappLimit = (plan == 'premium' || plan == 'profissional') ? 99999 : 10;
+    int quotationLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : 5;
+    int whatsappLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 99999 : 10;
+    int productLimit = (plan == 'premium' || plan == 'profissional' || plan == 'admin') ? 9999 : 50;
     
     await _quotasDao.resetQuota(userId, QuotaType.quotations.value, quotationLimit);
     await _quotasDao.resetQuota(userId, QuotaType.whatsappMessages.value, whatsappLimit);
+    await _quotasDao.resetQuota(userId, QuotaType.products.value, productLimit);
     
     // Busca uso remoto do Supabase para atualizar o local
     try {

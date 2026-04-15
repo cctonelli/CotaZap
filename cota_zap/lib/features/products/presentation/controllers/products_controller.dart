@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cota_zap/drift/database.dart';
 import 'package:cota_zap/core/di/injection.dart';
@@ -42,56 +43,48 @@ class ProductsState {
 final productsControllerProvider = NotifierProvider<ProductsController, ProductsState>(ProductsController.new);
 
 class ProductsController extends Notifier<ProductsState> {
+  StreamSubscription? _subscription;
   @override
   ProductsState build() {
-    // Observa o usuário para carga inicial
+    // Assiste ao userId e à categoria selecionada. Se qualquer um mudar, o build re-executa.
     final userId = ref.watch(userIdProvider);
+    final categoryId = ref.watch(categoriesControllerProvider.select((s) => s.selectedCategoryId));
     
-    // Escuta mudanças de categoria sem resetar o estado do Notifier
-    ref.listen(categoriesControllerProvider, (prev, next) {
-      if (prev?.selectedCategoryId != next.selectedCategoryId) {
-        _loadFiltered(next.selectedCategoryId);
-      }
+    ref.onDispose(() {
+      _subscription?.cancel();
     });
 
+    // Se o usuário estiver logado, dispara a observação do Stream.
     if (userId != null) {
-      // Carga inicial
-      Future.microtask(() {
-        final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
-        _loadFiltered(categoryId);
-      });
+      Future.microtask(() => _loadFiltered(categoryId));
+    } else {
+      // Se deslogou, limpa a lista.
+      Future.microtask(() => state = ProductsState(isLoading: false));
     }
     
     return ProductsState(isLoading: userId != null);
   }
 
-  Future<void> _loadFiltered(int? categoryId, {bool skipSync = false}) async {
-    final dao = ref.read(productsDaoProvider);
+  void _loadFiltered(int? categoryId) {
+    _subscription?.cancel();
+    
     final userId = ref.read(userIdProvider);
-    
-    AppLogger.info('Iniciando carga de produtos: UserID=$userId, CategoryID=$categoryId, Network=${state.showNetwork}', tag: 'Products');
-    
-    state = state.copyWith(isLoading: true);
-    
-    try {
-      final list = await dao.searchUniversal(
-        state.searchQuery, 
-        ownerId: userId, 
-        onlyNetwork: state.showNetwork,
-        categoryId: categoryId,
-      );
+    if (userId == null) return;
 
-      AppLogger.info('Produtos carregados: ${list.length} itens encontrados.', tag: 'Products');
-      state = state.copyWith(products: list, isLoading: false);
-    } catch (e) {
-      AppLogger.error('Erro ao carregar produtos do banco local', error: e, tag: 'Products');
-      state = state.copyWith(isLoading: false, errorMessage: 'Erro ao carregar dados locais.');
-    }
+    AppLogger.info('Lendo produtos (Network: ${state.showNetwork}, Cat: $categoryId, Query: ${state.searchQuery})', tag: 'Products');
+
+    final dao = ref.read(productsDaoProvider);
+    _subscription = dao.watchUniversal(
+      state.searchQuery,
+      ownerId: userId,
+      onlyNetwork: state.showNetwork,
+      categoryId: categoryId,
+    ).listen((items) {
+      state = state.copyWith(products: items, isLoading: false);
+      AppLogger.success('Stream de produtos atualizada: ${items.length} itens.', tag: 'Products');
+    });
     
-    // Sincroniza em background apenas se não viermos de um sync
-    if (!skipSync) {
-      _syncFromSupabase(categoryId);
-    }
+    _syncFromSupabase(categoryId);
   }
 
   Future<void> _syncFromSupabase(int? categoryId) async {
@@ -101,7 +94,7 @@ class ProductsController extends Notifier<ProductsState> {
     final db = ref.read(databaseProvider);
     try {
       final queryFilter = <String, dynamic>{
-        'or': '(owner_id.eq.$userId,is_from_rede.eq.true)'
+        'or': 'owner_id.eq.$userId,is_from_rede.eq.true'
       };
       
       if (categoryId != null) {
@@ -130,8 +123,8 @@ class ProductsController extends Notifier<ProductsState> {
             ),
           );
         }
-        // Force refresh local UI after sync, SKIPPING further syncs to avoid loop
-        await _loadFiltered(categoryId, skipSync: true);
+        // Note: Com o uso de Streams (watchUniversal), não precisamos mais chamar _loadFiltered manualmente após o sync local.
+        // O Drift detectará a inserção e notificará o stream.
       }
     } catch (e) {
       AppLogger.error('Erro ao sincronizar produtos do Supabase', error: e, tag: 'Products');
@@ -147,7 +140,7 @@ class ProductsController extends Notifier<ProductsState> {
   Future<void> toggleNetworkMode() async {
     state = state.copyWith(showNetwork: !state.showNetwork, isLoading: true);
     final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
-    await _loadFiltered(categoryId);
+    _loadFiltered(categoryId);
   }
 
   Future<void> searchNetwork(String query) async {
@@ -155,9 +148,9 @@ class ProductsController extends Notifier<ProductsState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null); // Limpa erro no refresh
     final categoryId = ref.read(categoriesControllerProvider).selectedCategoryId;
-    await _loadFiltered(categoryId);
+    _loadFiltered(categoryId);
   }
 
   Future<bool> insertProduct({
@@ -231,10 +224,11 @@ class ProductsController extends Notifier<ProductsState> {
         await quotaService.recordAction(userId, QuotaType.products);
       } catch (_) {}
       
-      await refresh();
+      AppLogger.success('Produto salvo localmente.', tag: 'Products');
+      state = state.copyWith(isLoading: false); // Garante que o loading pare após sucesso
       return true;
     } catch (e) {
-      AppLogger.error('Erro fatal ao cadastrar produto no Supabase (Categoria ID: $categoryId): $e', tag: 'Products');
+      AppLogger.error('Erro ao cadastrar produto', error: e, tag: 'Products');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
@@ -244,6 +238,5 @@ class ProductsController extends Notifier<ProductsState> {
     state = state.copyWith(isLoading: true);
     final dao = ref.read(productsDaoProvider);
     await dao.deleteProduct(product);
-    await refresh();
   }
 }

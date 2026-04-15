@@ -21,6 +21,7 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
   final _whatsappController = TextEditingController();
   bool _isSupplierToo = false;
   bool _isLoading = false;
+  int? _contactId; // ID real da tabela app_contacts (BigInt no Supabase)
 
   @override
   void initState() {
@@ -33,66 +34,78 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
     try {
       final user = SupabaseService.client.auth.currentUser;
       if (user == null) return;
+      
+      final userId = ref.read(userIdProvider) ?? user.id;
 
-      // 1. Perfil Mestre (Buscando apenas o ROLE, pois name/email estão em app_contacts)
-      final profile = await SupabaseService.client
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
+      // 1. Papel (Híbrido) - Isolado para não travar o resto
+      try {
+        final profile = await SupabaseService.client
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .maybeSingle()
+            .timeout(const Duration(seconds: 5));
 
-      if (profile != null) {
-        setState(() {
-          _nameController.text = profile['name'] ?? '';
-          _emailController.text = profile['email'] ?? '';
-          _isSupplierToo = profile['role'].toString().contains('supplier');
-        });
+        if (profile != null && mounted) {
+          setState(() {
+            _isSupplierToo = profile['role'].toString().contains('supplier');
+          });
+        }
+      } catch (e) {
+        debugPrint('⚠️ Tabela profiles instável, ignorando papel híbrido momentaneamente.');
       }
 
-      // 2. Dados Detalhados
-      final userId = ref.read(userIdProvider);
-      if (userId == null) return;
-
-      // 1. Tenta local (Atenção: Passando o e-mail para garantir o registro correto)
-      var contact = await ref.read(contactsDaoProvider).getMyProfile(userId, email: user.email);
+      // 2. Dados Reais (app_contacts)
+      var contact = await ref.read(contactsDaoProvider).getMyProfile(userId, email: user.email, isBuyer: true);
       
-      // 2. Fallback Remoto (Segurança extra)
       if (contact == null) {
-        debugPrint('🔍 Perfil não encontrado localmente na página de edição. Buscando remoto...');
-        final remoteData = await SupabaseService.client
-            .from('app_contacts')
-            .select()
-                .eq('owner_id', userId)
-                .maybeSingle();
+        debugPrint('🔍 Perfil local não encontrado, buscando remoto...');
+        try {
+          final remoteData = await SupabaseService.client
+              .from('app_contacts')
+              .select()
+              .eq('owner_id', userId)
+              .eq('is_buyer', true)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 10));
 
-        if (remoteData != null) {
-          await ref.read(contactsDaoProvider).upsertContact(AppContactsCompanion(
-            id: drift.Value(remoteData['id']),
-            tradeName: drift.Value(remoteData['trade_name'] ?? ''),
-            contactName: drift.Value(remoteData['contact_name']),
-            whatsapp: drift.Value(remoteData['whatsapp']),
-            email: drift.Value(remoteData['email']),
-            ownerId: drift.Value(remoteData['owner_id']),
-            isBuyer: const drift.Value(true),
-            isSynced: const drift.Value(true),
-          ));
-          contact = await ref.read(contactsDaoProvider).getMyProfile(userId, email: user.email);
+          if (remoteData != null) {
+            await ref.read(contactsDaoProvider).upsertContact(AppContactsCompanion(
+              id: drift.Value(remoteData['id']),
+              tradeName: drift.Value(remoteData['trade_name'] ?? ''),
+              contactName: drift.Value(remoteData['contact_name']),
+              whatsapp: drift.Value(remoteData['whatsapp']),
+              email: drift.Value(remoteData['email']),
+              ownerId: drift.Value(remoteData['owner_id']),
+              isBuyer: const drift.Value(true),
+              isSynced: const drift.Value(true),
+            ));
+            contact = await ref.read(contactsDaoProvider).getMyProfile(userId, isBuyer: true);
+          }
+        } catch (e) {
+          debugPrint('❌ Falha ao buscar dados remotos: $e');
         }
       }
 
       final contactData = contact;
       if (contactData != null && mounted) {
         setState(() {
+          _contactId = contactData.id;
           _nameController.text = contactData.tradeName;
           _contactNameController.text = contactData.contactName ?? '';
-          _emailController.text = contactData.email ?? '';
-          _whatsappController.text = (contactData.whatsapp ?? '').replaceFirst('+55 ', '');
+          _emailController.text = contactData.email ?? user.email ?? '';
+          
+          String phone = contactData.whatsapp ?? '';
+          if (phone.startsWith('+55 ')) phone = phone.replaceFirst('+55 ', '');
+          _whatsappController.text = phone;
         });
+      } else if (mounted) {
+        _emailController.text = user.email ?? '';
       }
     } catch (e) {
       AppLogger.error('Erro ao carregar perfil de comprador', error: e);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -134,19 +147,32 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
       ));
 
       // 2. Salva no Supabase (Base Online)
-      await SupabaseService.updateProfile(
-        table: 'app_contacts',
-        data: {
-          'owner_id': userId,
-          'trade_name': _nameController.text,
-          'contact_name': _contactNameController.text,
-          'email': _emailController.text,
-          'whatsapp': '+55 ${_whatsappController.text}',
-          'is_buyer': true,
-          'is_supplier': _isSupplierToo || ref.read(userRoleProvider) == UserRole.supplier,
-          'active': true,
-        },
-      );
+      final Map<String, dynamic> supabaseData = {
+        'owner_id': userId,
+        'trade_name': _nameController.text,
+        'contact_name': _contactNameController.text,
+        'email': _emailController.text,
+        'whatsapp': '+55 ${_whatsappController.text}',
+        'is_buyer': true,
+        'is_supplier': _isSupplierToo || ref.read(userRoleProvider) == UserRole.supplier,
+        'active': true,
+      };
+
+      // Se já temos o ID, passamos ele no payload do upsert para o Supabase atualizar o registro correto
+      if (_contactId != null) {
+        supabaseData['id'] = _contactId;
+      }
+
+      // Realiza o upsert e captura o resultado (para obter o ID se for novo cadastro)
+      final response = await SupabaseService.client
+          .from('app_contacts')
+          .upsert(supabaseData)
+          .select('id')
+          .single();
+      
+      if (response['id'] != null) {
+        _contactId = response['id'] as int;
+      }
 
       // 3. Atualiza a tabela mestra de perfis para o login híbrido
       await SupabaseService.client.from('profiles').update({

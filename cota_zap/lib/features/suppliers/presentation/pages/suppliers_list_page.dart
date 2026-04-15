@@ -127,42 +127,47 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
         ),
         child: Column(
           children: [
-            // BARRA DE PESQUISA DINÂMICA
+            // BARRA DE PESQUISA DINÂMICA (SUBSTITUI CTAS DE CATEGORIAS)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: TextField(
-                controller: searchController,
-                focusNode: searchFocusNode,
-                onChanged: (value) => controller.updateSearchQuery(value),
-                decoration: InputDecoration(
-                  hintText: 'Buscar por Nome, CNPJ, Contato, WhatsApp...',
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
-                  suffixIcon: searchController.text.isNotEmpty 
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 20),
-                        onPressed: () {
-                          searchController.clear();
-                          controller.updateSearchQuery('');
-                        },
-                      )
-                    : null,
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: searchController,
+                    focusNode: searchFocusNode,
+                    onChanged: (value) => controller.updateSearchQuery(value),
+                    decoration: InputDecoration(
+                      hintText: 'Pesquisar Fornecedor...',
+                      helperText: 'Busca por Nome, CNPJ/CPF, Contato, Celular ou Email',
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
+                      suffixIcon: searchController.text.isNotEmpty 
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              searchController.clear();
+                              controller.updateSearchQuery('');
+                            },
+                          )
+                        : null,
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                      ),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
-                  ),
-                  floatingLabelBehavior: FloatingLabelBehavior.never,
-                ),
+                ],
               ),
             ),
 
@@ -427,9 +432,9 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                            ref.read(suppliersControllerProvider.notifier).addSupplier(
+                            final success = await ref.read(suppliersControllerProvider.notifier).addSupplier(
                               name: nameController.text,
                               whatsapp: '+55 ${whatsappController.text}',
                               cnpjCpf: cnpjController.text,
@@ -442,7 +447,26 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                               zipCode: zipCodeController.text,
                               complement: complementController.text,
                             );
-                          Navigator.pop(context);
+                            
+                            if (mounted) {
+                              if (success) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('✅ Fornecedor cadastrado com sucesso!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } else {
+                                final error = ref.read(suppliersControllerProvider).errorMessage ?? 'Erro ao salvar.';
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('❌ Erro: $error'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                         }
                       },
                       style: ElevatedButton.styleFrom(
