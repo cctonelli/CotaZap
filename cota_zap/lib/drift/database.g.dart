@@ -38,8 +38,15 @@ class $AppProfilesTable extends AppProfiles
   late final GeneratedColumn<String> avatarUrl = GeneratedColumn<String>(
       'avatar_url', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _organizationIdMeta =
+      const VerificationMeta('organizationId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, role, planType, avatarUrl];
+  late final GeneratedColumn<String> organizationId = GeneratedColumn<String>(
+      'organization_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, role, planType, avatarUrl, organizationId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -75,6 +82,12 @@ class $AppProfilesTable extends AppProfiles
       context.handle(_avatarUrlMeta,
           avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta));
     }
+    if (data.containsKey('organization_id')) {
+      context.handle(
+          _organizationIdMeta,
+          organizationId.isAcceptableOrUnknown(
+              data['organization_id']!, _organizationIdMeta));
+    }
     return context;
   }
 
@@ -94,6 +107,8 @@ class $AppProfilesTable extends AppProfiles
           .read(DriftSqlType.string, data['${effectivePrefix}plan_type'])!,
       avatarUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}avatar_url']),
+      organizationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}organization_id']),
     );
   }
 
@@ -109,12 +124,14 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
   final String role;
   final String planType;
   final String? avatarUrl;
+  final String? organizationId;
   const AppProfile(
       {required this.id,
       required this.name,
       required this.role,
       required this.planType,
-      this.avatarUrl});
+      this.avatarUrl,
+      this.organizationId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -124,6 +141,9 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
     map['plan_type'] = Variable<String>(planType);
     if (!nullToAbsent || avatarUrl != null) {
       map['avatar_url'] = Variable<String>(avatarUrl);
+    }
+    if (!nullToAbsent || organizationId != null) {
+      map['organization_id'] = Variable<String>(organizationId);
     }
     return map;
   }
@@ -137,6 +157,9 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
       avatarUrl: avatarUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(avatarUrl),
+      organizationId: organizationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(organizationId),
     );
   }
 
@@ -149,6 +172,7 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
       role: serializer.fromJson<String>(json['role']),
       planType: serializer.fromJson<String>(json['planType']),
       avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
+      organizationId: serializer.fromJson<String?>(json['organizationId']),
     );
   }
   @override
@@ -160,6 +184,7 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
       'role': serializer.toJson<String>(role),
       'planType': serializer.toJson<String>(planType),
       'avatarUrl': serializer.toJson<String?>(avatarUrl),
+      'organizationId': serializer.toJson<String?>(organizationId),
     };
   }
 
@@ -168,13 +193,16 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
           String? name,
           String? role,
           String? planType,
-          Value<String?> avatarUrl = const Value.absent()}) =>
+          Value<String?> avatarUrl = const Value.absent(),
+          Value<String?> organizationId = const Value.absent()}) =>
       AppProfile(
         id: id ?? this.id,
         name: name ?? this.name,
         role: role ?? this.role,
         planType: planType ?? this.planType,
         avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
+        organizationId:
+            organizationId.present ? organizationId.value : this.organizationId,
       );
   AppProfile copyWithCompanion(AppProfilesCompanion data) {
     return AppProfile(
@@ -183,6 +211,9 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
       role: data.role.present ? data.role.value : this.role,
       planType: data.planType.present ? data.planType.value : this.planType,
       avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
+      organizationId: data.organizationId.present
+          ? data.organizationId.value
+          : this.organizationId,
     );
   }
 
@@ -193,13 +224,15 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
           ..write('name: $name, ')
           ..write('role: $role, ')
           ..write('planType: $planType, ')
-          ..write('avatarUrl: $avatarUrl')
+          ..write('avatarUrl: $avatarUrl, ')
+          ..write('organizationId: $organizationId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, role, planType, avatarUrl);
+  int get hashCode =>
+      Object.hash(id, name, role, planType, avatarUrl, organizationId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -208,7 +241,8 @@ class AppProfile extends DataClass implements Insertable<AppProfile> {
           other.name == this.name &&
           other.role == this.role &&
           other.planType == this.planType &&
-          other.avatarUrl == this.avatarUrl);
+          other.avatarUrl == this.avatarUrl &&
+          other.organizationId == this.organizationId);
 }
 
 class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
@@ -217,6 +251,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
   final Value<String> role;
   final Value<String> planType;
   final Value<String?> avatarUrl;
+  final Value<String?> organizationId;
   final Value<int> rowid;
   const AppProfilesCompanion({
     this.id = const Value.absent(),
@@ -224,6 +259,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
     this.role = const Value.absent(),
     this.planType = const Value.absent(),
     this.avatarUrl = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AppProfilesCompanion.insert({
@@ -232,6 +268,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
     required String role,
     this.planType = const Value.absent(),
     this.avatarUrl = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name),
@@ -242,6 +279,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
     Expression<String>? role,
     Expression<String>? planType,
     Expression<String>? avatarUrl,
+    Expression<String>? organizationId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -250,6 +288,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
       if (role != null) 'role': role,
       if (planType != null) 'plan_type': planType,
       if (avatarUrl != null) 'avatar_url': avatarUrl,
+      if (organizationId != null) 'organization_id': organizationId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -260,6 +299,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
       Value<String>? role,
       Value<String>? planType,
       Value<String?>? avatarUrl,
+      Value<String?>? organizationId,
       Value<int>? rowid}) {
     return AppProfilesCompanion(
       id: id ?? this.id,
@@ -267,6 +307,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
       role: role ?? this.role,
       planType: planType ?? this.planType,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      organizationId: organizationId ?? this.organizationId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -289,6 +330,9 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
     if (avatarUrl.present) {
       map['avatar_url'] = Variable<String>(avatarUrl.value);
     }
+    if (organizationId.present) {
+      map['organization_id'] = Variable<String>(organizationId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -303,6 +347,7 @@ class AppProfilesCompanion extends UpdateCompanion<AppProfile> {
           ..write('role: $role, ')
           ..write('planType: $planType, ')
           ..write('avatarUrl: $avatarUrl, ')
+          ..write('organizationId: $organizationId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -362,6 +407,12 @@ class $AppContactsTable extends AppContacts
   @override
   late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
       'owner_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _organizationIdMeta =
+      const VerificationMeta('organizationId');
+  @override
+  late final GeneratedColumn<String> organizationId = GeneratedColumn<String>(
+      'organization_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _planTypeMeta =
       const VerificationMeta('planType');
@@ -499,6 +550,7 @@ class $AppContactsTable extends AppContacts
         observations,
         active,
         ownerId,
+        organizationId,
         planType,
         productLimit,
         isRedeCotazap,
@@ -559,6 +611,12 @@ class $AppContactsTable extends AppContacts
     if (data.containsKey('owner_id')) {
       context.handle(_ownerIdMeta,
           ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
+    }
+    if (data.containsKey('organization_id')) {
+      context.handle(
+          _organizationIdMeta,
+          organizationId.isAcceptableOrUnknown(
+              data['organization_id']!, _organizationIdMeta));
     }
     if (data.containsKey('plan_type')) {
       context.handle(_planTypeMeta,
@@ -667,6 +725,8 @@ class $AppContactsTable extends AppContacts
           .read(DriftSqlType.bool, data['${effectivePrefix}active'])!,
       ownerId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id']),
+      organizationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}organization_id']),
       planType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}plan_type']),
       productLimit: attachedDatabase.typeMapping
@@ -718,6 +778,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
   final String? observations;
   final bool active;
   final String? ownerId;
+  final String? organizationId;
   final String? planType;
   final int? productLimit;
   final bool isRedeCotazap;
@@ -743,6 +804,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
       this.observations,
       required this.active,
       this.ownerId,
+      this.organizationId,
       this.planType,
       this.productLimit,
       required this.isRedeCotazap,
@@ -775,6 +837,9 @@ class AppContact extends DataClass implements Insertable<AppContact> {
     map['active'] = Variable<bool>(active);
     if (!nullToAbsent || ownerId != null) {
       map['owner_id'] = Variable<String>(ownerId);
+    }
+    if (!nullToAbsent || organizationId != null) {
+      map['organization_id'] = Variable<String>(organizationId);
     }
     if (!nullToAbsent || planType != null) {
       map['plan_type'] = Variable<String>(planType);
@@ -831,6 +896,9 @@ class AppContact extends DataClass implements Insertable<AppContact> {
       ownerId: ownerId == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerId),
+      organizationId: organizationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(organizationId),
       planType: planType == null && nullToAbsent
           ? const Value.absent()
           : Value(planType),
@@ -878,6 +946,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
       observations: serializer.fromJson<String?>(json['observations']),
       active: serializer.fromJson<bool>(json['active']),
       ownerId: serializer.fromJson<String?>(json['ownerId']),
+      organizationId: serializer.fromJson<String?>(json['organizationId']),
       planType: serializer.fromJson<String?>(json['planType']),
       productLimit: serializer.fromJson<int?>(json['productLimit']),
       isRedeCotazap: serializer.fromJson<bool>(json['isRedeCotazap']),
@@ -908,6 +977,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
       'observations': serializer.toJson<String?>(observations),
       'active': serializer.toJson<bool>(active),
       'ownerId': serializer.toJson<String?>(ownerId),
+      'organizationId': serializer.toJson<String?>(organizationId),
       'planType': serializer.toJson<String?>(planType),
       'productLimit': serializer.toJson<int?>(productLimit),
       'isRedeCotazap': serializer.toJson<bool>(isRedeCotazap),
@@ -936,6 +1006,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
           Value<String?> observations = const Value.absent(),
           bool? active,
           Value<String?> ownerId = const Value.absent(),
+          Value<String?> organizationId = const Value.absent(),
           Value<String?> planType = const Value.absent(),
           Value<int?> productLimit = const Value.absent(),
           bool? isRedeCotazap,
@@ -962,6 +1033,8 @@ class AppContact extends DataClass implements Insertable<AppContact> {
             observations.present ? observations.value : this.observations,
         active: active ?? this.active,
         ownerId: ownerId.present ? ownerId.value : this.ownerId,
+        organizationId:
+            organizationId.present ? organizationId.value : this.organizationId,
         planType: planType.present ? planType.value : this.planType,
         productLimit:
             productLimit.present ? productLimit.value : this.productLimit,
@@ -993,6 +1066,9 @@ class AppContact extends DataClass implements Insertable<AppContact> {
           : this.observations,
       active: data.active.present ? data.active.value : this.active,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      organizationId: data.organizationId.present
+          ? data.organizationId.value
+          : this.organizationId,
       planType: data.planType.present ? data.planType.value : this.planType,
       productLimit: data.productLimit.present
           ? data.productLimit.value
@@ -1035,6 +1111,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
           ..write('observations: $observations, ')
           ..write('active: $active, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('planType: $planType, ')
           ..write('productLimit: $productLimit, ')
           ..write('isRedeCotazap: $isRedeCotazap, ')
@@ -1065,6 +1142,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
         observations,
         active,
         ownerId,
+        organizationId,
         planType,
         productLimit,
         isRedeCotazap,
@@ -1094,6 +1172,7 @@ class AppContact extends DataClass implements Insertable<AppContact> {
           other.observations == this.observations &&
           other.active == this.active &&
           other.ownerId == this.ownerId &&
+          other.organizationId == this.organizationId &&
           other.planType == this.planType &&
           other.productLimit == this.productLimit &&
           other.isRedeCotazap == this.isRedeCotazap &&
@@ -1121,6 +1200,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
   final Value<String?> observations;
   final Value<bool> active;
   final Value<String?> ownerId;
+  final Value<String?> organizationId;
   final Value<String?> planType;
   final Value<int?> productLimit;
   final Value<bool> isRedeCotazap;
@@ -1146,6 +1226,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
     this.observations = const Value.absent(),
     this.active = const Value.absent(),
     this.ownerId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.planType = const Value.absent(),
     this.productLimit = const Value.absent(),
     this.isRedeCotazap = const Value.absent(),
@@ -1172,6 +1253,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
     this.observations = const Value.absent(),
     this.active = const Value.absent(),
     this.ownerId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.planType = const Value.absent(),
     this.productLimit = const Value.absent(),
     this.isRedeCotazap = const Value.absent(),
@@ -1199,6 +1281,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
     Expression<String>? observations,
     Expression<bool>? active,
     Expression<String>? ownerId,
+    Expression<String>? organizationId,
     Expression<String>? planType,
     Expression<int>? productLimit,
     Expression<bool>? isRedeCotazap,
@@ -1225,6 +1308,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
       if (observations != null) 'observations': observations,
       if (active != null) 'active': active,
       if (ownerId != null) 'owner_id': ownerId,
+      if (organizationId != null) 'organization_id': organizationId,
       if (planType != null) 'plan_type': planType,
       if (productLimit != null) 'product_limit': productLimit,
       if (isRedeCotazap != null) 'is_rede_cotazap': isRedeCotazap,
@@ -1253,6 +1337,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
       Value<String?>? observations,
       Value<bool>? active,
       Value<String?>? ownerId,
+      Value<String?>? organizationId,
       Value<String?>? planType,
       Value<int?>? productLimit,
       Value<bool>? isRedeCotazap,
@@ -1278,6 +1363,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
       observations: observations ?? this.observations,
       active: active ?? this.active,
       ownerId: ownerId ?? this.ownerId,
+      organizationId: organizationId ?? this.organizationId,
       planType: planType ?? this.planType,
       productLimit: productLimit ?? this.productLimit,
       isRedeCotazap: isRedeCotazap ?? this.isRedeCotazap,
@@ -1321,6 +1407,9 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
     }
     if (ownerId.present) {
       map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (organizationId.present) {
+      map['organization_id'] = Variable<String>(organizationId.value);
     }
     if (planType.present) {
       map['plan_type'] = Variable<String>(planType.value);
@@ -1386,6 +1475,7 @@ class AppContactsCompanion extends UpdateCompanion<AppContact> {
           ..write('observations: $observations, ')
           ..write('active: $active, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('planType: $planType, ')
           ..write('productLimit: $productLimit, ')
           ..write('isRedeCotazap: $isRedeCotazap, ')
@@ -1812,6 +1902,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
   late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
       'owner_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _organizationIdMeta =
+      const VerificationMeta('organizationId');
+  @override
+  late final GeneratedColumn<String> organizationId = GeneratedColumn<String>(
+      'organization_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isFromRedeMeta =
       const VerificationMeta('isFromRede');
   @override
@@ -1850,6 +1946,7 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         attributesJson,
         categoryId,
         ownerId,
+        organizationId,
         isFromRede,
         isSynced,
         lastUpdated
@@ -1913,6 +2010,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       context.handle(_ownerIdMeta,
           ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
     }
+    if (data.containsKey('organization_id')) {
+      context.handle(
+          _organizationIdMeta,
+          organizationId.isAcceptableOrUnknown(
+              data['organization_id']!, _organizationIdMeta));
+    }
     if (data.containsKey('is_from_rede')) {
       context.handle(
           _isFromRedeMeta,
@@ -1954,6 +2057,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
           .read(DriftSqlType.int, data['${effectivePrefix}category_id']),
       ownerId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id']),
+      organizationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}organization_id']),
       isFromRede: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_from_rede'])!,
       isSynced: attachedDatabase.typeMapping
@@ -1978,6 +2083,7 @@ class Product extends DataClass implements Insertable<Product> {
   final String attributesJson;
   final int? categoryId;
   final String? ownerId;
+  final String? organizationId;
   final bool isFromRede;
   final bool isSynced;
   final DateTime lastUpdated;
@@ -1990,6 +2096,7 @@ class Product extends DataClass implements Insertable<Product> {
       required this.attributesJson,
       this.categoryId,
       this.ownerId,
+      this.organizationId,
       required this.isFromRede,
       required this.isSynced,
       required this.lastUpdated});
@@ -2009,6 +2116,9 @@ class Product extends DataClass implements Insertable<Product> {
     }
     if (!nullToAbsent || ownerId != null) {
       map['owner_id'] = Variable<String>(ownerId);
+    }
+    if (!nullToAbsent || organizationId != null) {
+      map['organization_id'] = Variable<String>(organizationId);
     }
     map['is_from_rede'] = Variable<bool>(isFromRede);
     map['is_synced'] = Variable<bool>(isSynced);
@@ -2030,6 +2140,9 @@ class Product extends DataClass implements Insertable<Product> {
       ownerId: ownerId == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerId),
+      organizationId: organizationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(organizationId),
       isFromRede: Value(isFromRede),
       isSynced: Value(isSynced),
       lastUpdated: Value(lastUpdated),
@@ -2048,6 +2161,7 @@ class Product extends DataClass implements Insertable<Product> {
       attributesJson: serializer.fromJson<String>(json['attributesJson']),
       categoryId: serializer.fromJson<int?>(json['categoryId']),
       ownerId: serializer.fromJson<String?>(json['ownerId']),
+      organizationId: serializer.fromJson<String?>(json['organizationId']),
       isFromRede: serializer.fromJson<bool>(json['isFromRede']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
@@ -2065,6 +2179,7 @@ class Product extends DataClass implements Insertable<Product> {
       'attributesJson': serializer.toJson<String>(attributesJson),
       'categoryId': serializer.toJson<int?>(categoryId),
       'ownerId': serializer.toJson<String?>(ownerId),
+      'organizationId': serializer.toJson<String?>(organizationId),
       'isFromRede': serializer.toJson<bool>(isFromRede),
       'isSynced': serializer.toJson<bool>(isSynced),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
@@ -2080,6 +2195,7 @@ class Product extends DataClass implements Insertable<Product> {
           String? attributesJson,
           Value<int?> categoryId = const Value.absent(),
           Value<String?> ownerId = const Value.absent(),
+          Value<String?> organizationId = const Value.absent(),
           bool? isFromRede,
           bool? isSynced,
           DateTime? lastUpdated}) =>
@@ -2092,6 +2208,8 @@ class Product extends DataClass implements Insertable<Product> {
         attributesJson: attributesJson ?? this.attributesJson,
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         ownerId: ownerId.present ? ownerId.value : this.ownerId,
+        organizationId:
+            organizationId.present ? organizationId.value : this.organizationId,
         isFromRede: isFromRede ?? this.isFromRede,
         isSynced: isSynced ?? this.isSynced,
         lastUpdated: lastUpdated ?? this.lastUpdated,
@@ -2113,6 +2231,9 @@ class Product extends DataClass implements Insertable<Product> {
       categoryId:
           data.categoryId.present ? data.categoryId.value : this.categoryId,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      organizationId: data.organizationId.present
+          ? data.organizationId.value
+          : this.organizationId,
       isFromRede:
           data.isFromRede.present ? data.isFromRede.value : this.isFromRede,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
@@ -2132,6 +2253,7 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('attributesJson: $attributesJson, ')
           ..write('categoryId: $categoryId, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('isFromRede: $isFromRede, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastUpdated: $lastUpdated')
@@ -2149,6 +2271,7 @@ class Product extends DataClass implements Insertable<Product> {
       attributesJson,
       categoryId,
       ownerId,
+      organizationId,
       isFromRede,
       isSynced,
       lastUpdated);
@@ -2164,6 +2287,7 @@ class Product extends DataClass implements Insertable<Product> {
           other.attributesJson == this.attributesJson &&
           other.categoryId == this.categoryId &&
           other.ownerId == this.ownerId &&
+          other.organizationId == this.organizationId &&
           other.isFromRede == this.isFromRede &&
           other.isSynced == this.isSynced &&
           other.lastUpdated == this.lastUpdated);
@@ -2178,6 +2302,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<String> attributesJson;
   final Value<int?> categoryId;
   final Value<String?> ownerId;
+  final Value<String?> organizationId;
   final Value<bool> isFromRede;
   final Value<bool> isSynced;
   final Value<DateTime> lastUpdated;
@@ -2190,6 +2315,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.attributesJson = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.ownerId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.isFromRede = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.lastUpdated = const Value.absent(),
@@ -2203,6 +2329,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     required String attributesJson,
     this.categoryId = const Value.absent(),
     this.ownerId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.isFromRede = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.lastUpdated = const Value.absent(),
@@ -2219,6 +2346,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<String>? attributesJson,
     Expression<int>? categoryId,
     Expression<String>? ownerId,
+    Expression<String>? organizationId,
     Expression<bool>? isFromRede,
     Expression<bool>? isSynced,
     Expression<DateTime>? lastUpdated,
@@ -2232,6 +2360,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (attributesJson != null) 'attributes_json': attributesJson,
       if (categoryId != null) 'category_id': categoryId,
       if (ownerId != null) 'owner_id': ownerId,
+      if (organizationId != null) 'organization_id': organizationId,
       if (isFromRede != null) 'is_from_rede': isFromRede,
       if (isSynced != null) 'is_synced': isSynced,
       if (lastUpdated != null) 'last_updated': lastUpdated,
@@ -2247,6 +2376,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       Value<String>? attributesJson,
       Value<int?>? categoryId,
       Value<String?>? ownerId,
+      Value<String?>? organizationId,
       Value<bool>? isFromRede,
       Value<bool>? isSynced,
       Value<DateTime>? lastUpdated}) {
@@ -2259,6 +2389,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       attributesJson: attributesJson ?? this.attributesJson,
       categoryId: categoryId ?? this.categoryId,
       ownerId: ownerId ?? this.ownerId,
+      organizationId: organizationId ?? this.organizationId,
       isFromRede: isFromRede ?? this.isFromRede,
       isSynced: isSynced ?? this.isSynced,
       lastUpdated: lastUpdated ?? this.lastUpdated,
@@ -2292,6 +2423,9 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (ownerId.present) {
       map['owner_id'] = Variable<String>(ownerId.value);
     }
+    if (organizationId.present) {
+      map['organization_id'] = Variable<String>(organizationId.value);
+    }
     if (isFromRede.present) {
       map['is_from_rede'] = Variable<bool>(isFromRede.value);
     }
@@ -2315,6 +2449,7 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('attributesJson: $attributesJson, ')
           ..write('categoryId: $categoryId, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('isFromRede: $isFromRede, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastUpdated: $lastUpdated')
@@ -3228,6 +3363,12 @@ class $QuotationsTable extends Quotations
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES app_contacts (id)'));
+  static const VerificationMeta _organizationIdMeta =
+      const VerificationMeta('organizationId');
+  @override
+  late final GeneratedColumn<String> organizationId = GeneratedColumn<String>(
+      'organization_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _defaultPaymentTermDaysMeta =
       const VerificationMeta('defaultPaymentTermDays');
   @override
@@ -3261,6 +3402,7 @@ class $QuotationsTable extends Quotations
         templateMessage,
         totalEconomy,
         winnerSupplierId,
+        organizationId,
         defaultPaymentTermDays,
         defaultPaymentCondition,
         defaultLeadTimeDays,
@@ -3317,6 +3459,12 @@ class $QuotationsTable extends Quotations
           winnerSupplierId.isAcceptableOrUnknown(
               data['winner_supplier_id']!, _winnerSupplierIdMeta));
     }
+    if (data.containsKey('organization_id')) {
+      context.handle(
+          _organizationIdMeta,
+          organizationId.isAcceptableOrUnknown(
+              data['organization_id']!, _organizationIdMeta));
+    }
     if (data.containsKey('default_payment_term_days')) {
       context.handle(
           _defaultPaymentTermDaysMeta,
@@ -3365,6 +3513,8 @@ class $QuotationsTable extends Quotations
           .read(DriftSqlType.double, data['${effectivePrefix}total_economy'])!,
       winnerSupplierId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}winner_supplier_id']),
+      organizationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}organization_id']),
       defaultPaymentTermDays: attachedDatabase.typeMapping.read(
           DriftSqlType.int,
           data['${effectivePrefix}default_payment_term_days']),
@@ -3392,6 +3542,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
   final String templateMessage;
   final double totalEconomy;
   final int? winnerSupplierId;
+  final String? organizationId;
   final int? defaultPaymentTermDays;
   final String? defaultPaymentCondition;
   final int? defaultLeadTimeDays;
@@ -3404,6 +3555,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       required this.templateMessage,
       required this.totalEconomy,
       this.winnerSupplierId,
+      this.organizationId,
       this.defaultPaymentTermDays,
       this.defaultPaymentCondition,
       this.defaultLeadTimeDays,
@@ -3419,6 +3571,9 @@ class Quotation extends DataClass implements Insertable<Quotation> {
     map['total_economy'] = Variable<double>(totalEconomy);
     if (!nullToAbsent || winnerSupplierId != null) {
       map['winner_supplier_id'] = Variable<int>(winnerSupplierId);
+    }
+    if (!nullToAbsent || organizationId != null) {
+      map['organization_id'] = Variable<String>(organizationId);
     }
     if (!nullToAbsent || defaultPaymentTermDays != null) {
       map['default_payment_term_days'] = Variable<int>(defaultPaymentTermDays);
@@ -3447,6 +3602,9 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       winnerSupplierId: winnerSupplierId == null && nullToAbsent
           ? const Value.absent()
           : Value(winnerSupplierId),
+      organizationId: organizationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(organizationId),
       defaultPaymentTermDays: defaultPaymentTermDays == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultPaymentTermDays),
@@ -3473,6 +3631,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       templateMessage: serializer.fromJson<String>(json['templateMessage']),
       totalEconomy: serializer.fromJson<double>(json['totalEconomy']),
       winnerSupplierId: serializer.fromJson<int?>(json['winnerSupplierId']),
+      organizationId: serializer.fromJson<String?>(json['organizationId']),
       defaultPaymentTermDays:
           serializer.fromJson<int?>(json['defaultPaymentTermDays']),
       defaultPaymentCondition:
@@ -3494,6 +3653,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       'templateMessage': serializer.toJson<String>(templateMessage),
       'totalEconomy': serializer.toJson<double>(totalEconomy),
       'winnerSupplierId': serializer.toJson<int?>(winnerSupplierId),
+      'organizationId': serializer.toJson<String?>(organizationId),
       'defaultPaymentTermDays': serializer.toJson<int?>(defaultPaymentTermDays),
       'defaultPaymentCondition':
           serializer.toJson<String?>(defaultPaymentCondition),
@@ -3510,6 +3670,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
           String? templateMessage,
           double? totalEconomy,
           Value<int?> winnerSupplierId = const Value.absent(),
+          Value<String?> organizationId = const Value.absent(),
           Value<int?> defaultPaymentTermDays = const Value.absent(),
           Value<String?> defaultPaymentCondition = const Value.absent(),
           Value<int?> defaultLeadTimeDays = const Value.absent(),
@@ -3524,6 +3685,8 @@ class Quotation extends DataClass implements Insertable<Quotation> {
         winnerSupplierId: winnerSupplierId.present
             ? winnerSupplierId.value
             : this.winnerSupplierId,
+        organizationId:
+            organizationId.present ? organizationId.value : this.organizationId,
         defaultPaymentTermDays: defaultPaymentTermDays.present
             ? defaultPaymentTermDays.value
             : this.defaultPaymentTermDays,
@@ -3552,6 +3715,9 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       winnerSupplierId: data.winnerSupplierId.present
           ? data.winnerSupplierId.value
           : this.winnerSupplierId,
+      organizationId: data.organizationId.present
+          ? data.organizationId.value
+          : this.organizationId,
       defaultPaymentTermDays: data.defaultPaymentTermDays.present
           ? data.defaultPaymentTermDays.value
           : this.defaultPaymentTermDays,
@@ -3577,6 +3743,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
           ..write('templateMessage: $templateMessage, ')
           ..write('totalEconomy: $totalEconomy, ')
           ..write('winnerSupplierId: $winnerSupplierId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('defaultPaymentTermDays: $defaultPaymentTermDays, ')
           ..write('defaultPaymentCondition: $defaultPaymentCondition, ')
           ..write('defaultLeadTimeDays: $defaultLeadTimeDays, ')
@@ -3594,6 +3761,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
       templateMessage,
       totalEconomy,
       winnerSupplierId,
+      organizationId,
       defaultPaymentTermDays,
       defaultPaymentCondition,
       defaultLeadTimeDays,
@@ -3609,6 +3777,7 @@ class Quotation extends DataClass implements Insertable<Quotation> {
           other.templateMessage == this.templateMessage &&
           other.totalEconomy == this.totalEconomy &&
           other.winnerSupplierId == this.winnerSupplierId &&
+          other.organizationId == this.organizationId &&
           other.defaultPaymentTermDays == this.defaultPaymentTermDays &&
           other.defaultPaymentCondition == this.defaultPaymentCondition &&
           other.defaultLeadTimeDays == this.defaultLeadTimeDays &&
@@ -3623,6 +3792,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
   final Value<String> templateMessage;
   final Value<double> totalEconomy;
   final Value<int?> winnerSupplierId;
+  final Value<String?> organizationId;
   final Value<int?> defaultPaymentTermDays;
   final Value<String?> defaultPaymentCondition;
   final Value<int?> defaultLeadTimeDays;
@@ -3635,6 +3805,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     this.templateMessage = const Value.absent(),
     this.totalEconomy = const Value.absent(),
     this.winnerSupplierId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.defaultPaymentTermDays = const Value.absent(),
     this.defaultPaymentCondition = const Value.absent(),
     this.defaultLeadTimeDays = const Value.absent(),
@@ -3648,6 +3819,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     required String templateMessage,
     this.totalEconomy = const Value.absent(),
     this.winnerSupplierId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.defaultPaymentTermDays = const Value.absent(),
     this.defaultPaymentCondition = const Value.absent(),
     this.defaultLeadTimeDays = const Value.absent(),
@@ -3664,6 +3836,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     Expression<String>? templateMessage,
     Expression<double>? totalEconomy,
     Expression<int>? winnerSupplierId,
+    Expression<String>? organizationId,
     Expression<int>? defaultPaymentTermDays,
     Expression<String>? defaultPaymentCondition,
     Expression<int>? defaultLeadTimeDays,
@@ -3677,6 +3850,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       if (templateMessage != null) 'template_message': templateMessage,
       if (totalEconomy != null) 'total_economy': totalEconomy,
       if (winnerSupplierId != null) 'winner_supplier_id': winnerSupplierId,
+      if (organizationId != null) 'organization_id': organizationId,
       if (defaultPaymentTermDays != null)
         'default_payment_term_days': defaultPaymentTermDays,
       if (defaultPaymentCondition != null)
@@ -3696,6 +3870,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       Value<String>? templateMessage,
       Value<double>? totalEconomy,
       Value<int?>? winnerSupplierId,
+      Value<String?>? organizationId,
       Value<int?>? defaultPaymentTermDays,
       Value<String?>? defaultPaymentCondition,
       Value<int?>? defaultLeadTimeDays,
@@ -3708,6 +3883,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
       templateMessage: templateMessage ?? this.templateMessage,
       totalEconomy: totalEconomy ?? this.totalEconomy,
       winnerSupplierId: winnerSupplierId ?? this.winnerSupplierId,
+      organizationId: organizationId ?? this.organizationId,
       defaultPaymentTermDays:
           defaultPaymentTermDays ?? this.defaultPaymentTermDays,
       defaultPaymentCondition:
@@ -3741,6 +3917,9 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
     if (winnerSupplierId.present) {
       map['winner_supplier_id'] = Variable<int>(winnerSupplierId.value);
     }
+    if (organizationId.present) {
+      map['organization_id'] = Variable<String>(organizationId.value);
+    }
     if (defaultPaymentTermDays.present) {
       map['default_payment_term_days'] =
           Variable<int>(defaultPaymentTermDays.value);
@@ -3769,6 +3948,7 @@ class QuotationsCompanion extends UpdateCompanion<Quotation> {
           ..write('templateMessage: $templateMessage, ')
           ..write('totalEconomy: $totalEconomy, ')
           ..write('winnerSupplierId: $winnerSupplierId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('defaultPaymentTermDays: $defaultPaymentTermDays, ')
           ..write('defaultPaymentCondition: $defaultPaymentCondition, ')
           ..write('defaultLeadTimeDays: $defaultLeadTimeDays, ')
@@ -5042,6 +5222,12 @@ class $UsageQuotasTable extends UsageQuotas
   late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
       'owner_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _organizationIdMeta =
+      const VerificationMeta('organizationId');
+  @override
+  late final GeneratedColumn<String> organizationId = GeneratedColumn<String>(
+      'organization_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _quotaTypeMeta =
       const VerificationMeta('quotaType');
   @override
@@ -5071,8 +5257,15 @@ class $UsageQuotasTable extends UsageQuotas
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, ownerId, quotaType, usedCount, limitCount, lastResetAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        ownerId,
+        organizationId,
+        quotaType,
+        usedCount,
+        limitCount,
+        lastResetAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -5091,6 +5284,12 @@ class $UsageQuotasTable extends UsageQuotas
           ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta));
     } else if (isInserting) {
       context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('organization_id')) {
+      context.handle(
+          _organizationIdMeta,
+          organizationId.isAcceptableOrUnknown(
+              data['organization_id']!, _organizationIdMeta));
     }
     if (data.containsKey('quota_type')) {
       context.handle(_quotaTypeMeta,
@@ -5129,6 +5328,8 @@ class $UsageQuotasTable extends UsageQuotas
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       ownerId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}owner_id'])!,
+      organizationId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}organization_id']),
       quotaType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}quota_type'])!,
       usedCount: attachedDatabase.typeMapping
@@ -5149,6 +5350,7 @@ class $UsageQuotasTable extends UsageQuotas
 class UsageQuota extends DataClass implements Insertable<UsageQuota> {
   final int id;
   final String ownerId;
+  final String? organizationId;
   final String quotaType;
   final int usedCount;
   final int limitCount;
@@ -5156,6 +5358,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
   const UsageQuota(
       {required this.id,
       required this.ownerId,
+      this.organizationId,
       required this.quotaType,
       required this.usedCount,
       required this.limitCount,
@@ -5165,6 +5368,9 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['owner_id'] = Variable<String>(ownerId);
+    if (!nullToAbsent || organizationId != null) {
+      map['organization_id'] = Variable<String>(organizationId);
+    }
     map['quota_type'] = Variable<String>(quotaType);
     map['used_count'] = Variable<int>(usedCount);
     map['limit_count'] = Variable<int>(limitCount);
@@ -5176,6 +5382,9 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     return UsageQuotasCompanion(
       id: Value(id),
       ownerId: Value(ownerId),
+      organizationId: organizationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(organizationId),
       quotaType: Value(quotaType),
       usedCount: Value(usedCount),
       limitCount: Value(limitCount),
@@ -5189,6 +5398,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     return UsageQuota(
       id: serializer.fromJson<int>(json['id']),
       ownerId: serializer.fromJson<String>(json['ownerId']),
+      organizationId: serializer.fromJson<String?>(json['organizationId']),
       quotaType: serializer.fromJson<String>(json['quotaType']),
       usedCount: serializer.fromJson<int>(json['usedCount']),
       limitCount: serializer.fromJson<int>(json['limitCount']),
@@ -5201,6 +5411,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'ownerId': serializer.toJson<String>(ownerId),
+      'organizationId': serializer.toJson<String?>(organizationId),
       'quotaType': serializer.toJson<String>(quotaType),
       'usedCount': serializer.toJson<int>(usedCount),
       'limitCount': serializer.toJson<int>(limitCount),
@@ -5211,6 +5422,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
   UsageQuota copyWith(
           {int? id,
           String? ownerId,
+          Value<String?> organizationId = const Value.absent(),
           String? quotaType,
           int? usedCount,
           int? limitCount,
@@ -5218,6 +5430,8 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
       UsageQuota(
         id: id ?? this.id,
         ownerId: ownerId ?? this.ownerId,
+        organizationId:
+            organizationId.present ? organizationId.value : this.organizationId,
         quotaType: quotaType ?? this.quotaType,
         usedCount: usedCount ?? this.usedCount,
         limitCount: limitCount ?? this.limitCount,
@@ -5227,6 +5441,9 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     return UsageQuota(
       id: data.id.present ? data.id.value : this.id,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      organizationId: data.organizationId.present
+          ? data.organizationId.value
+          : this.organizationId,
       quotaType: data.quotaType.present ? data.quotaType.value : this.quotaType,
       usedCount: data.usedCount.present ? data.usedCount.value : this.usedCount,
       limitCount:
@@ -5241,6 +5458,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
     return (StringBuffer('UsageQuota(')
           ..write('id: $id, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('quotaType: $quotaType, ')
           ..write('usedCount: $usedCount, ')
           ..write('limitCount: $limitCount, ')
@@ -5250,14 +5468,15 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, ownerId, quotaType, usedCount, limitCount, lastResetAt);
+  int get hashCode => Object.hash(id, ownerId, organizationId, quotaType,
+      usedCount, limitCount, lastResetAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is UsageQuota &&
           other.id == this.id &&
           other.ownerId == this.ownerId &&
+          other.organizationId == this.organizationId &&
           other.quotaType == this.quotaType &&
           other.usedCount == this.usedCount &&
           other.limitCount == this.limitCount &&
@@ -5267,6 +5486,7 @@ class UsageQuota extends DataClass implements Insertable<UsageQuota> {
 class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
   final Value<int> id;
   final Value<String> ownerId;
+  final Value<String?> organizationId;
   final Value<String> quotaType;
   final Value<int> usedCount;
   final Value<int> limitCount;
@@ -5274,6 +5494,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
   const UsageQuotasCompanion({
     this.id = const Value.absent(),
     this.ownerId = const Value.absent(),
+    this.organizationId = const Value.absent(),
     this.quotaType = const Value.absent(),
     this.usedCount = const Value.absent(),
     this.limitCount = const Value.absent(),
@@ -5282,6 +5503,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
   UsageQuotasCompanion.insert({
     this.id = const Value.absent(),
     required String ownerId,
+    this.organizationId = const Value.absent(),
     required String quotaType,
     this.usedCount = const Value.absent(),
     required int limitCount,
@@ -5292,6 +5514,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
   static Insertable<UsageQuota> custom({
     Expression<int>? id,
     Expression<String>? ownerId,
+    Expression<String>? organizationId,
     Expression<String>? quotaType,
     Expression<int>? usedCount,
     Expression<int>? limitCount,
@@ -5300,6 +5523,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (ownerId != null) 'owner_id': ownerId,
+      if (organizationId != null) 'organization_id': organizationId,
       if (quotaType != null) 'quota_type': quotaType,
       if (usedCount != null) 'used_count': usedCount,
       if (limitCount != null) 'limit_count': limitCount,
@@ -5310,6 +5534,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
   UsageQuotasCompanion copyWith(
       {Value<int>? id,
       Value<String>? ownerId,
+      Value<String?>? organizationId,
       Value<String>? quotaType,
       Value<int>? usedCount,
       Value<int>? limitCount,
@@ -5317,6 +5542,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
     return UsageQuotasCompanion(
       id: id ?? this.id,
       ownerId: ownerId ?? this.ownerId,
+      organizationId: organizationId ?? this.organizationId,
       quotaType: quotaType ?? this.quotaType,
       usedCount: usedCount ?? this.usedCount,
       limitCount: limitCount ?? this.limitCount,
@@ -5332,6 +5558,9 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
     }
     if (ownerId.present) {
       map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (organizationId.present) {
+      map['organization_id'] = Variable<String>(organizationId.value);
     }
     if (quotaType.present) {
       map['quota_type'] = Variable<String>(quotaType.value);
@@ -5353,6 +5582,7 @@ class UsageQuotasCompanion extends UpdateCompanion<UsageQuota> {
     return (StringBuffer('UsageQuotasCompanion(')
           ..write('id: $id, ')
           ..write('ownerId: $ownerId, ')
+          ..write('organizationId: $organizationId, ')
           ..write('quotaType: $quotaType, ')
           ..write('usedCount: $usedCount, ')
           ..write('limitCount: $limitCount, ')
@@ -6184,6 +6414,7 @@ typedef $$AppProfilesTableCreateCompanionBuilder = AppProfilesCompanion
   required String role,
   Value<String> planType,
   Value<String?> avatarUrl,
+  Value<String?> organizationId,
   Value<int> rowid,
 });
 typedef $$AppProfilesTableUpdateCompanionBuilder = AppProfilesCompanion
@@ -6193,6 +6424,7 @@ typedef $$AppProfilesTableUpdateCompanionBuilder = AppProfilesCompanion
   Value<String> role,
   Value<String> planType,
   Value<String?> avatarUrl,
+  Value<String?> organizationId,
   Value<int> rowid,
 });
 
@@ -6240,6 +6472,10 @@ class $$AppProfilesTableFilterComposer
   ColumnFilters<String> get avatarUrl => $composableBuilder(
       column: $table.avatarUrl, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnFilters(column));
+
   Expression<bool> quotationsRefs(
       Expression<bool> Function($$QuotationsTableFilterComposer f) f) {
     final $$QuotationsTableFilterComposer composer = $composerBuilder(
@@ -6285,6 +6521,10 @@ class $$AppProfilesTableOrderingComposer
 
   ColumnOrderings<String> get avatarUrl => $composableBuilder(
       column: $table.avatarUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AppProfilesTableAnnotationComposer
@@ -6310,6 +6550,9 @@ class $$AppProfilesTableAnnotationComposer
 
   GeneratedColumn<String> get avatarUrl =>
       $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get organizationId => $composableBuilder(
+      column: $table.organizationId, builder: (column) => column);
 
   Expression<T> quotationsRefs<T extends Object>(
       Expression<T> Function($$QuotationsTableAnnotationComposer a) f) {
@@ -6361,6 +6604,7 @@ class $$AppProfilesTableTableManager extends RootTableManager<
             Value<String> role = const Value.absent(),
             Value<String> planType = const Value.absent(),
             Value<String?> avatarUrl = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AppProfilesCompanion(
@@ -6369,6 +6613,7 @@ class $$AppProfilesTableTableManager extends RootTableManager<
             role: role,
             planType: planType,
             avatarUrl: avatarUrl,
+            organizationId: organizationId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6377,6 +6622,7 @@ class $$AppProfilesTableTableManager extends RootTableManager<
             required String role,
             Value<String> planType = const Value.absent(),
             Value<String?> avatarUrl = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               AppProfilesCompanion.insert(
@@ -6385,6 +6631,7 @@ class $$AppProfilesTableTableManager extends RootTableManager<
             role: role,
             planType: planType,
             avatarUrl: avatarUrl,
+            organizationId: organizationId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -6441,6 +6688,7 @@ typedef $$AppContactsTableCreateCompanionBuilder = AppContactsCompanion
   Value<String?> observations,
   Value<bool> active,
   Value<String?> ownerId,
+  Value<String?> organizationId,
   Value<String?> planType,
   Value<int?> productLimit,
   Value<bool> isRedeCotazap,
@@ -6468,6 +6716,7 @@ typedef $$AppContactsTableUpdateCompanionBuilder = AppContactsCompanion
   Value<String?> observations,
   Value<bool> active,
   Value<String?> ownerId,
+  Value<String?> organizationId,
   Value<String?> planType,
   Value<int?> productLimit,
   Value<bool> isRedeCotazap,
@@ -6606,6 +6855,10 @@ class $$AppContactsTableFilterComposer
 
   ColumnFilters<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get planType => $composableBuilder(
       column: $table.planType, builder: (column) => ColumnFilters(column));
@@ -6796,6 +7049,10 @@ class $$AppContactsTableOrderingComposer
   ColumnOrderings<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get planType => $composableBuilder(
       column: $table.planType, builder: (column) => ColumnOrderings(column));
 
@@ -6881,6 +7138,9 @@ class $$AppContactsTableAnnotationComposer
 
   GeneratedColumn<String> get ownerId =>
       $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get organizationId => $composableBuilder(
+      column: $table.organizationId, builder: (column) => column);
 
   GeneratedColumn<String> get planType =>
       $composableBuilder(column: $table.planType, builder: (column) => column);
@@ -7078,6 +7338,7 @@ class $$AppContactsTableTableManager extends RootTableManager<
             Value<String?> observations = const Value.absent(),
             Value<bool> active = const Value.absent(),
             Value<String?> ownerId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<String?> planType = const Value.absent(),
             Value<int?> productLimit = const Value.absent(),
             Value<bool> isRedeCotazap = const Value.absent(),
@@ -7104,6 +7365,7 @@ class $$AppContactsTableTableManager extends RootTableManager<
             observations: observations,
             active: active,
             ownerId: ownerId,
+            organizationId: organizationId,
             planType: planType,
             productLimit: productLimit,
             isRedeCotazap: isRedeCotazap,
@@ -7130,6 +7392,7 @@ class $$AppContactsTableTableManager extends RootTableManager<
             Value<String?> observations = const Value.absent(),
             Value<bool> active = const Value.absent(),
             Value<String?> ownerId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<String?> planType = const Value.absent(),
             Value<int?> productLimit = const Value.absent(),
             Value<bool> isRedeCotazap = const Value.absent(),
@@ -7156,6 +7419,7 @@ class $$AppContactsTableTableManager extends RootTableManager<
             observations: observations,
             active: active,
             ownerId: ownerId,
+            organizationId: organizationId,
             planType: planType,
             productLimit: productLimit,
             isRedeCotazap: isRedeCotazap,
@@ -7640,6 +7904,7 @@ typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
   required String attributesJson,
   Value<int?> categoryId,
   Value<String?> ownerId,
+  Value<String?> organizationId,
   Value<bool> isFromRede,
   Value<bool> isSynced,
   Value<DateTime> lastUpdated,
@@ -7653,6 +7918,7 @@ typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
   Value<String> attributesJson,
   Value<int?> categoryId,
   Value<String?> ownerId,
+  Value<String?> organizationId,
   Value<bool> isFromRede,
   Value<bool> isSynced,
   Value<DateTime> lastUpdated,
@@ -7741,6 +8007,10 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isFromRede => $composableBuilder(
       column: $table.isFromRede, builder: (column) => ColumnFilters(column));
@@ -7846,6 +8116,10 @@ class $$ProductsTableOrderingComposer
   ColumnOrderings<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isFromRede => $composableBuilder(
       column: $table.isFromRede, builder: (column) => ColumnOrderings(column));
 
@@ -7905,6 +8179,9 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<String> get ownerId =>
       $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get organizationId => $composableBuilder(
+      column: $table.organizationId, builder: (column) => column);
 
   GeneratedColumn<bool> get isFromRede => $composableBuilder(
       column: $table.isFromRede, builder: (column) => column);
@@ -8013,6 +8290,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             Value<String> attributesJson = const Value.absent(),
             Value<int?> categoryId = const Value.absent(),
             Value<String?> ownerId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<bool> isFromRede = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> lastUpdated = const Value.absent(),
@@ -8026,6 +8304,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             attributesJson: attributesJson,
             categoryId: categoryId,
             ownerId: ownerId,
+            organizationId: organizationId,
             isFromRede: isFromRede,
             isSynced: isSynced,
             lastUpdated: lastUpdated,
@@ -8039,6 +8318,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             required String attributesJson,
             Value<int?> categoryId = const Value.absent(),
             Value<String?> ownerId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<bool> isFromRede = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> lastUpdated = const Value.absent(),
@@ -8052,6 +8332,7 @@ class $$ProductsTableTableManager extends RootTableManager<
             attributesJson: attributesJson,
             categoryId: categoryId,
             ownerId: ownerId,
+            organizationId: organizationId,
             isFromRede: isFromRede,
             isSynced: isSynced,
             lastUpdated: lastUpdated,
@@ -9099,6 +9380,7 @@ typedef $$QuotationsTableCreateCompanionBuilder = QuotationsCompanion Function({
   required String templateMessage,
   Value<double> totalEconomy,
   Value<int?> winnerSupplierId,
+  Value<String?> organizationId,
   Value<int?> defaultPaymentTermDays,
   Value<String?> defaultPaymentCondition,
   Value<int?> defaultLeadTimeDays,
@@ -9112,6 +9394,7 @@ typedef $$QuotationsTableUpdateCompanionBuilder = QuotationsCompanion Function({
   Value<String> templateMessage,
   Value<double> totalEconomy,
   Value<int?> winnerSupplierId,
+  Value<String?> organizationId,
   Value<int?> defaultPaymentTermDays,
   Value<String?> defaultPaymentCondition,
   Value<int?> defaultLeadTimeDays,
@@ -9192,6 +9475,10 @@ class $$QuotationsTableFilterComposer
 
   ColumnFilters<double> get totalEconomy => $composableBuilder(
       column: $table.totalEconomy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get defaultPaymentTermDays => $composableBuilder(
       column: $table.defaultPaymentTermDays,
@@ -9297,6 +9584,10 @@ class $$QuotationsTableOrderingComposer
       column: $table.totalEconomy,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get defaultPaymentTermDays => $composableBuilder(
       column: $table.defaultPaymentTermDays,
       builder: (column) => ColumnOrderings(column));
@@ -9377,6 +9668,9 @@ class $$QuotationsTableAnnotationComposer
 
   GeneratedColumn<double> get totalEconomy => $composableBuilder(
       column: $table.totalEconomy, builder: (column) => column);
+
+  GeneratedColumn<String> get organizationId => $composableBuilder(
+      column: $table.organizationId, builder: (column) => column);
 
   GeneratedColumn<int> get defaultPaymentTermDays => $composableBuilder(
       column: $table.defaultPaymentTermDays, builder: (column) => column);
@@ -9483,6 +9777,7 @@ class $$QuotationsTableTableManager extends RootTableManager<
             Value<String> templateMessage = const Value.absent(),
             Value<double> totalEconomy = const Value.absent(),
             Value<int?> winnerSupplierId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<int?> defaultPaymentTermDays = const Value.absent(),
             Value<String?> defaultPaymentCondition = const Value.absent(),
             Value<int?> defaultLeadTimeDays = const Value.absent(),
@@ -9496,6 +9791,7 @@ class $$QuotationsTableTableManager extends RootTableManager<
             templateMessage: templateMessage,
             totalEconomy: totalEconomy,
             winnerSupplierId: winnerSupplierId,
+            organizationId: organizationId,
             defaultPaymentTermDays: defaultPaymentTermDays,
             defaultPaymentCondition: defaultPaymentCondition,
             defaultLeadTimeDays: defaultLeadTimeDays,
@@ -9509,6 +9805,7 @@ class $$QuotationsTableTableManager extends RootTableManager<
             required String templateMessage,
             Value<double> totalEconomy = const Value.absent(),
             Value<int?> winnerSupplierId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<int?> defaultPaymentTermDays = const Value.absent(),
             Value<String?> defaultPaymentCondition = const Value.absent(),
             Value<int?> defaultLeadTimeDays = const Value.absent(),
@@ -9522,6 +9819,7 @@ class $$QuotationsTableTableManager extends RootTableManager<
             templateMessage: templateMessage,
             totalEconomy: totalEconomy,
             winnerSupplierId: winnerSupplierId,
+            organizationId: organizationId,
             defaultPaymentTermDays: defaultPaymentTermDays,
             defaultPaymentCondition: defaultPaymentCondition,
             defaultLeadTimeDays: defaultLeadTimeDays,
@@ -10618,6 +10916,7 @@ typedef $$UsageQuotasTableCreateCompanionBuilder = UsageQuotasCompanion
     Function({
   Value<int> id,
   required String ownerId,
+  Value<String?> organizationId,
   required String quotaType,
   Value<int> usedCount,
   required int limitCount,
@@ -10627,6 +10926,7 @@ typedef $$UsageQuotasTableUpdateCompanionBuilder = UsageQuotasCompanion
     Function({
   Value<int> id,
   Value<String> ownerId,
+  Value<String?> organizationId,
   Value<String> quotaType,
   Value<int> usedCount,
   Value<int> limitCount,
@@ -10647,6 +10947,10 @@ class $$UsageQuotasTableFilterComposer
 
   ColumnFilters<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get quotaType => $composableBuilder(
       column: $table.quotaType, builder: (column) => ColumnFilters(column));
@@ -10676,6 +10980,10 @@ class $$UsageQuotasTableOrderingComposer
   ColumnOrderings<String> get ownerId => $composableBuilder(
       column: $table.ownerId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get organizationId => $composableBuilder(
+      column: $table.organizationId,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get quotaType => $composableBuilder(
       column: $table.quotaType, builder: (column) => ColumnOrderings(column));
 
@@ -10703,6 +11011,9 @@ class $$UsageQuotasTableAnnotationComposer
 
   GeneratedColumn<String> get ownerId =>
       $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get organizationId => $composableBuilder(
+      column: $table.organizationId, builder: (column) => column);
 
   GeneratedColumn<String> get quotaType =>
       $composableBuilder(column: $table.quotaType, builder: (column) => column);
@@ -10742,6 +11053,7 @@ class $$UsageQuotasTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String> ownerId = const Value.absent(),
+            Value<String?> organizationId = const Value.absent(),
             Value<String> quotaType = const Value.absent(),
             Value<int> usedCount = const Value.absent(),
             Value<int> limitCount = const Value.absent(),
@@ -10750,6 +11062,7 @@ class $$UsageQuotasTableTableManager extends RootTableManager<
               UsageQuotasCompanion(
             id: id,
             ownerId: ownerId,
+            organizationId: organizationId,
             quotaType: quotaType,
             usedCount: usedCount,
             limitCount: limitCount,
@@ -10758,6 +11071,7 @@ class $$UsageQuotasTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required String ownerId,
+            Value<String?> organizationId = const Value.absent(),
             required String quotaType,
             Value<int> usedCount = const Value.absent(),
             required int limitCount,
@@ -10766,6 +11080,7 @@ class $$UsageQuotasTableTableManager extends RootTableManager<
               UsageQuotasCompanion.insert(
             id: id,
             ownerId: ownerId,
+            organizationId: organizationId,
             quotaType: quotaType,
             usedCount: usedCount,
             limitCount: limitCount,

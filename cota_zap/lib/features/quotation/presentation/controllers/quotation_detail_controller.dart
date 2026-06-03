@@ -54,34 +54,34 @@ class QuotationDetailController extends StateNotifier<QuotationDetailState> {
     final itemIds = items.map((e) => e.id).toList();
     
     try {
-      // Busca respostas que pertencem a estes itens da cotação
-      // Nota: Idealmente o Supabase teria um IN filter eficiente
-      final remoteResponses = await SupabaseService.fetchTable(
-        table: 'supplier_responses',
-      );
+      // Busca respostas que pertencem a estes itens da cotação no Supabase
+      final response = await SupabaseService.client
+          .from('supplier_responses')
+          .select()
+          .filter('item_quotation_id', 'in', itemIds);
       
-      final filtered = remoteResponses.where((r) => itemIds.contains(r['quotation_item_id'])).toList();
+      final List<dynamic> remoteResponses = response as List<dynamic>;
       
-      if (filtered.isNotEmpty) {
-        for (var r in filtered) {
+      if (remoteResponses.isNotEmpty) {
+        for (var r in remoteResponses) {
           await db.into(db.supplierResponses).insertOnConflictUpdate(
             SupplierResponsesCompanion(
               id: Value(r['id']),
-              quotationItemId: Value(r['quotation_item_id']),
+              quotationItemId: Value(r['item_quotation_id']),
               supplierId: Value(r['supplier_id']),
-              receivedMessage: Value(r['received_message']),
-              pricingExtracted: Value(r['pricing_extracted'] != null ? (r['pricing_extracted'] as num).toDouble() : null),
+              receivedMessage: Value(r['message_received']),
+              pricingExtracted: Value(r['price_extracted'] != null ? (r['price_extracted'] as num).toDouble() : null),
               deliveryTimeDays: Value(r['delivery_time_days']),
               responseDate: Value(DateTime.tryParse(r['response_date'] ?? '') ?? DateTime.now()),
               status: Value(r['status'] ?? 'replied'),
               paymentTermDays: Value(r['payment_term_days']),
               paymentCondition: Value(r['payment_condition']),
-              earlyDiscountPercent: Value(r['early_discount_percent'] != null ? (r['early_discount_percent'] as num).toDouble() : null),
               calculatedScore: Value(r['calculated_score'] ?? 0),
             ),
           );
         }
-        AppLogger.success('${filtered.length} respostas sincronizadas para a cotação.', tag: 'QuotationDetail');
+        AppLogger.success('${remoteResponses.length} respostas sincronizadas.', tag: 'QuotationDetail');
+        
         // RE-carrega dados locais para refletir no UI
         final updatedItems = await ref.read(quotationsDaoProvider).getQuotationItems(quotationId);
         state = state.copyWith(items: updatedItems);

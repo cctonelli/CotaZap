@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/buyer_dashboard_controller.dart';
 import 'package:intl/intl.dart';
-
+import 'package:cota_zap/core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 class BuyerDashboardPage extends ConsumerWidget {
   const BuyerDashboardPage({super.key});
 
@@ -280,14 +281,14 @@ class BuyerDashboardPage extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.emerald.shade400, Colors.emerald.shade700],
+                    colors: [Colors.teal.shade400, Colors.teal.shade700],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.emerald.withOpacity(0.3),
+                      color: Colors.teal.withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -303,7 +304,7 @@ class BuyerDashboardPage extends ConsumerWidget {
               Container(
                 width: 4,
                 height: 4,
-                decoration: const BoxDecoration(color: Colors.emeraldAccent, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: Colors.tealAccent, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Text(

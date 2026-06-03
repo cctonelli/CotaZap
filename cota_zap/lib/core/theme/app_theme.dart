@@ -30,10 +30,9 @@ class AppTheme {
         fontWeight: FontWeight.w800,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: const CardThemeData(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      color: cardColor,
+      color: Colors.white,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(

@@ -78,13 +78,12 @@ class WhatsAppService:
     async def send_quotation_to_suppliers(
         self,
         suppliers: List[dict],
-        message: str,
+        message: Optional[str] = None,
         instance: Optional[str] = None,
     ) -> dict:
         """
         Dispara a mensagem de cotação para uma lista de fornecedores.
-        Cada item da lista deve ter os campos 'whatsapp' e 'trade_name'.
-        Retorna um resumo {enviados, falhos, detalhes}.
+        V1.5: Suporta mensagem por fornecedor e variação humana.
         """
         sent = []
         failed = []
@@ -92,14 +91,24 @@ class WhatsAppService:
         for supplier in suppliers:
             whatsapp = supplier.get("whatsapp", "")
             trade_name = supplier.get("trade_name", "Fornecedor")
+            
+            # Prioriza a mensagem específica do fornecedor (que pode ter o nome dele, etc)
+            final_message = supplier.get("message") or message
+            
+            if not final_message:
+                failed.append({"supplier": trade_name, "reason": "Mensagem não definida"})
+                continue
 
             if not whatsapp:
                 failed.append({"supplier": trade_name, "reason": "Número WhatsApp não cadastrado"})
                 continue
 
+            # Aplica variação humana leve (ex: "Oi [Nome]," se não tiver)
+            varied_message = self._apply_human_variation(final_message)
+
             result = await self.send_text_message(
                 number=whatsapp,
-                text=message,
+                text=varied_message,
                 instance=instance,
             )
 

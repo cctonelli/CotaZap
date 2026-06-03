@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cota_zap/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:cota_zap/core/network/supabase_service.dart';
 import 'package:cota_zap/drift/database.dart';
+import 'package:cota_zap/features/onboarding/presentation/controllers/onboarding_controller.dart';
 import 'package:drift/drift.dart' hide Column;
 
 class OnboardingRolePage extends ConsumerStatefulWidget {
@@ -114,90 +115,43 @@ class _OnboardingRolePageState extends ConsumerState<OnboardingRolePage> {
   }
 
   Future<void> _handleBuyerClick() async {
-    try {
-      debugPrint('🔵 Iniciando fluxo "Sou Comprador"...');
-      final user = ref.read(authControllerProvider).value ?? SupabaseService.client.auth.currentUser;
-      if (user == null) {
-        context.go('/login');
-        return;
-      }
-      
-      ref.read(userRoleProvider.notifier).state = UserRole.buyer;
-      
-      var contact = await ref.read(contactsDaoProvider).getMyProfile(user.id, email: user.email, isBuyer: true);
-      
-      if (contact == null) {
-        final remoteData = await SupabaseService.client
-            .from('app_contacts')
-            .select()
-            .eq('owner_id', user.id)
-            .maybeSingle();
+    final user = ref.read(authControllerProvider).value ?? SupabaseService.client.auth.currentUser;
+    if (user == null) {
+      context.go('/login');
+      return;
+    }
 
-        if (remoteData != null) {
-          await ref.read(contactsDaoProvider).upsertContact(AppContactsCompanion(
-            id: Value(remoteData['id']),
-            tradeName: Value(remoteData['trade_name']),
-            contactName: Value(remoteData['contact_name']),
-            whatsapp: Value(remoteData['whatsapp']),
-            email: Value(remoteData['email']),
-            ownerId: Value(remoteData['owner_id']),
-            isBuyer: const Value(true),
-            isSynced: const Value(true),
-          ));
-          contact = await ref.read(contactsDaoProvider).getMyProfile(user.id);
-        }
-      }
-      
-      if (_isProfileComplete(contact, UserRole.buyer)) {
-        context.go('/buyer-dashboard');
-      } else {
-        context.go('/buyer-profile');
-      }
-    } catch (e) {
+    await ref.read(onboardingControllerProvider.notifier).selectRole(
+      UserRole.buyer,
+      userId: user.id,
+      email: user.email ?? '',
+    );
+
+    final contact = await ref.read(contactsDaoProvider).getMyProfile(user.id);
+    if (_isProfileComplete(contact, UserRole.buyer)) {
+      context.go('/buyer-dashboard');
+    } else {
       context.go('/buyer-profile');
     }
   }
 
   Future<void> _handleSupplierClick() async {
-    try {
-      debugPrint('🟠 Iniciando fluxo "Sou Fornecedor"...');
-      final user = ref.read(authControllerProvider).value ?? SupabaseService.client.auth.currentUser;
-      if (user == null) {
-        context.go('/login');
-        return;
-      }
-      
-      ref.read(userRoleProvider.notifier).state = UserRole.supplier;
-      
-      var contact = await ref.read(contactsDaoProvider).getMyProfile(user.id, email: user.email);
-      if (contact == null) {
-        final remoteData = await SupabaseService.client
-            .from('app_contacts')
-            .select()
-            .eq('owner_id', user.id)
-            .maybeSingle();
+    final user = ref.read(authControllerProvider).value ?? SupabaseService.client.auth.currentUser;
+    if (user == null) {
+      context.go('/login');
+      return;
+    }
 
-        if (remoteData != null) {
-          await ref.read(contactsDaoProvider).upsertContact(AppContactsCompanion(
-            id: Value(remoteData['id']),
-            tradeName: Value(remoteData['trade_name']),
-            contactName: Value(remoteData['contact_name']),
-            whatsapp: Value(remoteData['whatsapp']),
-            email: Value(remoteData['email']),
-            ownerId: Value(remoteData['owner_id']),
-            isSupplier: const Value(true),
-            isSynced: const Value(true),
-          ));
-          contact = await ref.read(contactsDaoProvider).getMyProfile(user.id);
-        }
-      }
-      
-      if (_isProfileComplete(contact, UserRole.supplier)) {
-        context.go('/supplier-dashboard');
-      } else {
-        context.go('/supplier-profile');
-      }
-    } catch (e) {
+    await ref.read(onboardingControllerProvider.notifier).selectRole(
+      UserRole.supplier,
+      userId: user.id,
+      email: user.email ?? '',
+    );
+
+    final contact = await ref.read(contactsDaoProvider).getMyProfile(user.id);
+    if (_isProfileComplete(contact, UserRole.supplier)) {
+      context.go('/supplier-dashboard');
+    } else {
       context.go('/supplier-profile');
     }
   }

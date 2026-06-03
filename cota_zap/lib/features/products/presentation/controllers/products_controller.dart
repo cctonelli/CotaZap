@@ -101,12 +101,15 @@ class ProductsController extends Notifier<ProductsState> {
         queryFilter['category_id'] = categoryId;
       }
 
-      final remoteProducts = await SupabaseService.fetchTable(
-        table: 'products',
-        filter: queryFilter,
-      );
+      // v1.5: Adicionado timeout para evitar travamentos de rede (Semáforo expirou)
+      final remoteProducts = await SupabaseService.client
+          .from('products')
+          .select()
+          .or('owner_id.eq.$userId,is_from_rede.eq.true')
+          .timeout(const Duration(seconds: 15));
       
-      if (remoteProducts.isNotEmpty) {
+      if (remoteProducts != null && remoteProducts.isNotEmpty) {
+        AppLogger.info('Sincronizando ${remoteProducts.length} produtos do Supabase...', tag: 'Products');
         for (var p in remoteProducts) {
           await db.into(db.products).insertOnConflictUpdate(
             ProductsCompanion(
@@ -123,11 +126,10 @@ class ProductsController extends Notifier<ProductsState> {
             ),
           );
         }
-        // Note: Com o uso de Streams (watchUniversal), não precisamos mais chamar _loadFiltered manualmente após o sync local.
-        // O Drift detectará a inserção e notificará o stream.
       }
     } catch (e) {
-      AppLogger.error('Erro ao sincronizar produtos do Supabase', error: e, tag: 'Products');
+      // No v1.5, falhas de rede no sincronismo de fundo são silenciadas para não atrapalhar o Offline-first
+      AppLogger.warning('Sincronismo de produtos ignorado (Offline Mode): $e', tag: 'Products');
     }
   }
 

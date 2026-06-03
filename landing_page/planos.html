@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CotaZap - Planos e Preços</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-header { padding: 150px 24px 40px; text-align: center; }
+        .pricing-grid { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; margin-bottom: 80px; }
+        .pricing-card { background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 40px; border-radius: 24px; text-align: center; width: 340px; transition: transform 0.4s var(--transition-snappy); backdrop-filter: var(--glass-blur); position: relative; overflow: hidden; }
+        .pricing-card:hover { transform: translateY(-10px); background: rgba(255,255,255,0.05); }
+        .pricing-card.premium { border-color: var(--brand-accent); box-shadow: 0 0 40px rgba(27,209,114,0.15); transform: scale(1.05); }
+        .pricing-card.premium:hover { transform: scale(1.05) translateY(-10px); }
+        .pricing-card .badge-popular { position: absolute; top: 20px; right: 20px; font-size: 0.75rem; background: var(--brand-accent); color: var(--bg-primary); padding: 4px 12px; border-radius: 50px; font-weight: 800; }
+        .price { font-size: 3.5rem; font-weight: 800; color: #fff; margin: 20px 0; }
+        .price span { font-size: 1.2rem; color: var(--text-secondary); font-weight: 400; }
+        .pricing-list { list-style: none; margin-bottom: 40px; text-align: left; }
+        .pricing-list li { padding: 16px 0; border-bottom: 1px solid var(--glass-border); color: var(--text-primary); display:flex; align-items:center; gap: 12px; }
+        .pricing-list li svg { color: var(--brand-accent); width: 20px; height: 20px; flex-shrink: 0; }
+        .pricing-card .btn { width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <a href="index.html"><img src="../cota_zap/assets/images/logo.png" alt="CotaZap Logo" class="brand-logo"></a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="recursos.html">Recursos</a></li>
+                <li><a href="compradores.html">Compradores</a></li>
+                <li><a href="fornecedores.html">Fornecedores</a></li>
+                <li><a href="planos.html" style="color:#fff; font-weight:700;">Planos</a></li>
+            </ul>
+            <a href="index.html#testar" class="btn btn-glass">Testar Grátis</a>
+        </div>
+    </nav>
+    <main style="min-height: 80vh;">
+        <header class="page-header">
+            <h1 class="gradient-text gradient-glow animate-up">Escolha seu Plano</h1>
+            <p class="animate-up delay-1" style="max-width:600px; margin:0 auto;">Escale as compras da sua empresa com as ferramentas ideais para o seu momento.</p>
+        </header>
+
+        <h2 style="text-align: center; margin-top: 20px; font-size: 2rem;">Para Compradores</h2>
+        <section class="pricing-grid animate-up delay-2">
+            <!-- Free Comprador Plan -->
+            <div class="pricing-card">
+                <h3>Comprador Free</h3>
+                <div class="price">R$ 0<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 2 cotações gratuitas por dia</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 1 Usuário Comprador</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Acesso Básico à Rede</li>
+                </ul>
+                <a href="#" class="btn btn-outline" style="border-color: rgba(255,255,255,0.2); color: #fff;">Iniciar Grátis</a>
+            </div>
+
+            <!-- Basic Comprador Plan -->
+            <div class="pricing-card">
+                <h3>Comprador Start</h3>
+                <div class="price">R$ 29<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Até 50 cotações/mês</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 1 Usuário Comprador</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Comparador de Preços</li>
+                </ul>
+                <a href="#" class="btn btn-outline">Assinar Start</a>
+            </div>
+
+            <!-- Premium Comprador Plan -->
+            <div class="pricing-card premium">
+                <div class="badge-popular">MAIS ESCOLHIDO</div>
+                <h3 class="gradient-text">Comprador PRO</h3>
+                <div class="price">R$ 49<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Cotações Ilimitadas</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Até 5 Usuários</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Acesso VIP à Rede</li>
+                </ul>
+                <a href="#" class="btn btn-glow">Começar PRO</a>
+            </div>
+        </section>
+
+        <h2 style="text-align: center; margin-top: 40px; font-size: 2rem;">Para Fornecedores</h2>
+        <section class="pricing-grid animate-up delay-3" style="margin-bottom: 40px;">
+            <!-- Free Fornecedor Plan -->
+            <div class="pricing-card">
+                <h3>Vendedor Free</h3>
+                <div class="price">R$ 0<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Cadastre até 15 produtos grátis</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Resposta manual</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Perfil Básico</li>
+                </ul>
+                <a href="#" class="btn btn-outline" style="border-color: rgba(255,255,255,0.2); color: #fff;">Iniciar Grátis</a>
+            </div>
+
+            <!-- Basic Fornecedor Plan -->
+            <div class="pricing-card">
+                <h3>Vendedor Start</h3>
+                <div class="price">R$ 19<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Receba até 30 pedidos/mês</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Resposta direta via Painel</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Perfil na Rede CotaZap</li>
+                </ul>
+                <a href="#" class="btn btn-outline">Assinar Start</a>
+            </div>
+
+            <!-- Premium Fornecedor Plan -->
+            <div class="pricing-card premium" style="border-color: var(--brand-purple); box-shadow: 0 0 40px rgba(139, 77, 255, 0.15);">
+                <div class="badge-popular" style="background: var(--brand-purple);">ILIMITADO</div>
+                <h3 class="gradient-text-alt">Vendedor PRO</h3>
+                <div class="price">R$ 39<span>/mês</span></div>
+                <ul class="pricing-list">
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Pedidos Ilimitados</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Destaque nas Buscas</li>
+                    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Analytics de Vendas</li>
+                </ul>
+                <a href="#" class="btn btn-glow" style="background: linear-gradient(135deg, var(--brand-purple), var(--brand-blue)); box-shadow: 0 10px 30px rgba(139, 77, 255, 0.3);">Começar PRO</a>
+            </div>
+        </section>
+    </main>
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <div class="logo">
+                    <a href="index.html"><img src="../cota_zap/assets/images/logo.png" alt="CotaZap" class="brand-logo" style="height:48px;"></a>
+                </div>
+                <p>A tecnologia que transforma conexões em grandes negócios B2B.</p>
+            </div>
+            <div class="footer-links">
+                <h4>Navegação</h4>
+                <ul><li><a href="index.html">Início</a></li><li><a href="planos.html">Planos</a></li></ul>
+            </div>
+        </div>
+        <div class="footer-bottom"><p>&copy; 2026 CotaZap. Todos os direitos reservados.</p></div>
+    </footer>
+</body>
+</html>

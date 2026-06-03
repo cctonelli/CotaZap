@@ -4,7 +4,9 @@ import 'package:cota_zap/core/di/injection.dart';
 import 'package:cota_zap/core/network/supabase_service.dart';
 import 'package:cota_zap/core/services/quota_service.dart';
 import 'package:cota_zap/core/utils/app_logger.dart';
+import 'package:cota_zap/core/utils/whatsapp_helpers.dart';
 import 'package:drift/drift.dart';
+import 'package:cota_zap/features/quotation/domain/usecases/send_quotation_usecase.dart';
 
 /// Estado da Nova Cotação
 class NewQuotationState {
@@ -114,177 +116,70 @@ class NewQuotationController extends Notifier<NewQuotationState> {
 
   // --- Lógica de Envio ---
 
-  Future<void> sendQuotation() async {
-    if (state.selectedProducts.isEmpty) return;
+  Future<int?> sendQuotation() async {
+    final ownerId = ref.read(userIdProvider);
+    final plan = ref.read(planTypeProvider);
+
+    if (ownerId == null) {
+      state = state.copyWith(errorMessage: 'Usuário não autenticado.');
+      return null;
+    }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    final quotationsDao = ref.read(quotationsDaoProvider);
-    final buyersDao = ref.read(buyersDaoProvider);
-    final dio = ref.read(dioProvider);
-
     try {
-      final ownerId = ref.read(userIdProvider);
-      if (ownerId == null) {
-        throw Exception('Usuário não autenticado. Faça login para continuar.');
+      if (state.selectedProducts.isEmpty) {
+        throw Exception('Selecione ao menos um produto.');
       }
 
-      final buyer = await buyersDao.getFirstBuyer(ownerId);
-      if (buyer == null) {
-        throw Exception('Perfil de comprador não encontrado. Cadastre seus dados em "Meu Perfil".');
+      if (state.selectedSupplierIds.isEmpty) {
+        throw Exception('Selecione ao menos um fornecedor.');
       }
 
-      final quotaService = ref.read(quotaServiceProvider);
-      final plan = ref.read(planTypeProvider);
-      
-      final canSendQuotation = await quotaService.canPerformAction(buyer.ownerId ?? '', plan, QuotaType.quotations);
-      if (!canSendQuotation) {
-        throw Exception('Limite diário de cotações atingido no seu plano ($plan).');
-      }
+      final sendQuotationUseCase = ref.read(sendQuotationUseCaseProvider);
 
-      final canSendWhatsApp = await quotaService.canPerformAction(buyer.ownerId ?? '', plan, QuotaType.whatsappMessages);
-      if (!canSendWhatsApp) {
-        throw Exception('Limite diário de mensagens WhatsApp atingido no seu plano ($plan).');
-      }
+      final quotationId = await sendQuotationUseCase(SendQuotationParams(
+        ownerId: ownerId,
+        plan: plan,
+        selectedProducts: state.selectedProducts,
+        selectedSupplierIds: state.selectedSupplierIds,
+        deliveryType: state.deliveryType,
+        leadTimeDefault: state.leadTimeDefault,
+        paymentTermDays: state.paymentTermDays,
+        paymentCondition: state.paymentCondition,
+      ));
 
-      final buyerUUID = buyer.ownerId;
-      if (buyerUUID == null || buyerUUID.isEmpty) {
-        throw Exception('UUID do comprador não encontrado. Verifique sua conexão com o servidor.');
-      }
-
-      // 1. Criar Cabeçalho da Cotação no DB Local
-      final quotationId = await quotationsDao.createQuotation(
-        QuotationsCompanion(
-          buyerId: Value(buyerUUID),
-          date: Value(DateTime.now()),
-          status: const Value('sent'),
-          templateMessage: Value(_generateWhatsAppMessage()),
-          defaultPaymentTermDays: Value(state.paymentTermDays),
-          defaultPaymentCondition: Value(state.paymentCondition),
-          defaultLeadTimeDays: Value(state.leadTimeDefault),
-          defaultDeliveryType: Value(state.deliveryType),
-        ),
-      );
-
-      // 2. Criar Itens da Cotação
-      for (var entry in state.selectedProducts.entries) {
-        await quotationsDao.insertItem(
-          QuotationItemsCompanion(
-            quotationId: Value(quotationId),
-            productId: Value(entry.key.id),
-            quantity: Value(entry.value),
-            // Copia os defaults da cotação para o item caso queira sobrescrever depois
-            paymentTermDays: Value(state.paymentTermDays),
-            paymentCondition: Value(state.paymentCondition),
-            desiredLeadTime: Value(state.leadTimeDefault),
-            deliveryType: Value(state.deliveryType),
-          ),
-        );
-      }
-
-      // 3. Replicar para o Supabase (Nuvem)
-      try {
-        await SupabaseService.updateProfile(
-          table: 'quotations',
-          data: {
-            'id': quotationId,
-            'buyer_id': buyerUUID,
-            'status': 'sent',
-            'template_message': _generateWhatsAppMessage(),
-            'default_payment_term_days': state.paymentTermDays,
-            'default_payment_condition': state.paymentCondition,
-            'default_lead_time_days': state.leadTimeDefault,
-            'default_delivery_type': state.deliveryType,
-            'created_at': DateTime.now().toIso8601String(),
-          },
-        );
-
-        // Upload de itens para o Supabase
-        final itemsData = <Map<String, dynamic>>[];
-        for (var entry in state.selectedProducts.entries) {
-          itemsData.add({
-            'quotation_id': quotationId,
-            'product_id': entry.key.id,
-            'quantity': entry.value,
-          });
-        }
-        await SupabaseService.updateProfile(table: 'quotation_items', data: itemsData);
-
-      } catch (supabaseError) {
-        AppLogger.error('Erro ao replicar cotação para o Supabase', error: supabaseError, tag: 'Supabase');
-      }
-
-      // 4. Disparar mensagens via Evolution API → Backend CotaZap
-      try {
-        // Buscar dados completos dos fornecedores selecionados no Drift (SQLite local)
-        // O backend precisa de trade_name + whatsapp para disparar — não tem acesso ao nosso DB
-        final suppliersDao = ref.read(suppliersDaoProvider);
-        final List<Map<String, String>> suppliersPayload = [];
-
-        if (state.selectedSupplierIds.isNotEmpty) {
-          for (final id in state.selectedSupplierIds) {
-            final supplier = await suppliersDao.getContactById(id);
-            if (supplier != null && supplier.whatsapp.isNotEmpty) {
-              suppliersPayload.add({
-                'trade_name': supplier.tradeName,
-                'whatsapp': supplier.whatsapp,
-              });
-            }
-          }
-        }
-
-        if (suppliersPayload.isEmpty) {
-          AppLogger.warning(
-            'Nenhum fornecedor com WhatsApp válido para disparar.',
-            tag: 'Evolution API',
-          );
-        } else {
-          final response = await dio.post('/webhooks/send-quotation', data: {
-            'quotation_id': quotationId,
-            'message': _generateWhatsAppMessage(),
-            'suppliers': suppliersPayload,
-            'buyer_whatsapp': buyer.whatsapp,
-          });
-
-          final sent = response.data?['sent'] ?? 0;
-          final total = response.data?['total_suppliers'] ?? 0;
-          AppLogger.success(
-            'WhatsApp: $sent/$total mensagens enviadas com sucesso!',
-            tag: 'Evolution API',
-          );
-        }
-      } catch (apiError) {
-        // Registro de erro mas NÃO bloqueia o fluxo — cotação já foi salva
-        AppLogger.error(
-          'Falha ao disparar WhatsApp via Evolution API',
-          error: apiError,
-          tag: 'Evolution API',
-        );
-      }
-
-      // Registrar uso de quotas após sucesso
-      await quotaService.recordAction(buyer.ownerId ?? '', QuotaType.quotations);
-      await quotaService.recordAction(buyer.ownerId ?? '', QuotaType.whatsappMessages);
-
-      state = state.copyWith(isLoading: false, selectedProducts: {}); 
+      state = state.copyWith(isLoading: false, selectedProducts: {}, selectedSupplierIds: []); 
+      AppLogger.success('Cotação enviada com sucesso!');
+      return quotationId;
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      AppLogger.error('Erro ao enviar cotação', error: e);
+      return null;
     }
   }
 
-  String _generateWhatsAppMessage() {
+  String previewMessage({bool isRede = false}) {
     final buffer = StringBuffer();
     buffer.writeln('📋 *NOVA COTAÇÃO - COTAZAP*');
     buffer.writeln('---');
     for (var entry in state.selectedProducts.entries) {
-      buffer.writeln('• ${entry.value} x ${entry.key.description}');
+      final qtyStr = WhatsAppHelpers.formatQuantity(entry.value);
+      buffer.writeln('• $qtyStr ${entry.key.unitMeasure} x ${entry.key.description}');
     }
     buffer.writeln('---');
     buffer.writeln('📍 Frete: ${state.deliveryType}');
     buffer.writeln('📅 Entrega: ${state.leadTimeDefault} dias');
     buffer.writeln('💰 Pagamento: ${state.paymentCondition} (${state.paymentTermDays} dias)');
     buffer.writeln('---');
-    buffer.write('Responder via link CotaZap: [PROVEDOR_LINK_AQUI]');
+    
+    if (isRede) {
+      buffer.write('Responder via link CotaZap: [PROVEDOR_LINK_AQUI]');
+    } else {
+      buffer.writeln('👉 *COMO RESPONDER:*');
+      buffer.writeln('Favor responder com o preço dos itens acima.');
+      buffer.write('Nossa IA processará os dados automaticamente.');
+    }
     return buffer.toString();
   }
 }

@@ -18,6 +18,7 @@ class AppProfiles extends Table {
   TextColumn get role => text()(); // 'buyer', 'supplier', 'admin'
   TextColumn get planType => text().withDefault(const Constant('free'))();
   TextColumn get avatarUrl => text().nullable()();
+  TextColumn get organizationId => text().nullable()();
   
   @override
   Set<Column> get primaryKey => {id};
@@ -38,6 +39,7 @@ class AppContacts extends Table {
   
   // v1.5: Planos e Limites
   TextColumn get ownerId => text().nullable()(); // Se for um fornecedor privado do comprador
+  TextColumn get organizationId => text().nullable()();
   TextColumn get planType => text().nullable().withDefault(const Constant('free'))();
   IntColumn get productLimit => integer().nullable().withDefault(const Constant(15))();
   
@@ -82,6 +84,7 @@ class Products extends Table {
   
   IntColumn get categoryId => integer().nullable().references(ProductCategories, #id)();
   TextColumn get ownerId => text().nullable()(); // UUID de quem cadastrou
+  TextColumn get organizationId => text().nullable()();
   BoolColumn get isFromRede => boolean().withDefault(const Constant(false))();
 
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
@@ -110,6 +113,7 @@ class Quotations extends Table {
   // Campos de BI
   RealColumn get totalEconomy => real().withDefault(const Constant(0.0))();
   IntColumn get winnerSupplierId => integer().nullable().references(AppContacts, #id)();
+  TextColumn get organizationId => text().nullable()();
 
   // Novos campos v1.4 (Padrões da Cotação)
   IntColumn get defaultPaymentTermDays => integer().nullable()(); // prazo_pagamento_dias (Padrão)
@@ -158,6 +162,7 @@ class SupplierResponses extends Table {
 class UsageQuotas extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get ownerId => text()();
+  TextColumn get organizationId => text().nullable()();
   TextColumn get quotaType => text()(); // 'whatsapp_messages', 'quotations', 'products'
   IntColumn get usedCount => integer().withDefault(const Constant(0))();
   IntColumn get limitCount => integer()();

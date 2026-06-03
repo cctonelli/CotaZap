@@ -66,16 +66,17 @@ class SupplierDispatch(BaseModel):
     """Dados mínimos de um fornecedor para disparo de WhatsApp."""
     trade_name: str = Field(..., description="Nome fantasia do fornecedor")
     whatsapp: str = Field(..., description="Número WhatsApp do fornecedor (com DDI)")
+    message: Optional[str] = Field(None, description="Mensagem personalizada para este fornecedor")
 
 
 class SendQuotationRequest(BaseModel):
     """
     Payload enviado pelo Flutter quando o comprador aperta "Enviar Cotação".
-    O Flutter envia os dados dos fornecedores diretamente — sem consulta
-    a banco separado no backend (os dados já estão no Drift/Supabase do app).
+    V1.5: Inclui buyer_id e suporte a mensagens por fornecedor.
     """
     quotation_id: int = Field(..., description="ID da cotação criada no banco local")
-    message: str = Field(..., description="Mensagem WhatsApp gerada pelo app")
+    buyer_id: str = Field(..., description="UUID do comprador (Supabase)")
+    message: Optional[str] = Field(None, description="Mensagem padrão (caso não haja por fornecedor)")
     suppliers: List[SupplierDispatch] = Field(
         ...,
         description="Lista de fornecedores com nome e WhatsApp para disparo.",

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:cota_zap/drift/database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:cota_zap/core/di/injection.dart';
 import 'package:cota_zap/drift/daos/contacts_dao.dart';
 import 'package:cota_zap/core/presentation/widgets/side_menu_drawer.dart';
 import 'package:cota_zap/features/quotation/presentation/controllers/new_quotation_controller.dart';
+import 'package:cota_zap/core/utils/whatsapp_helpers.dart';
 
 
 
@@ -191,7 +193,12 @@ class NewQuotationPage extends ConsumerWidget {
               child: ElevatedButton.icon(
                 onPressed: state.selectedProducts.isEmpty || state.selectedSupplierIds.isEmpty || state.isLoading
                     ? null
-                    : () => controller.sendQuotation(),
+                    : () async {
+                        final id = await controller.sendQuotation();
+                        if (id != null && context.mounted) {
+                          context.push('/quotation-detail/$id');
+                        }
+                      },
                 icon: state.isLoading 
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.send, size: 28),
@@ -324,7 +331,7 @@ class SelectedProductCard extends StatelessWidget {
               width: 80,
               decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
               child: TextFormField(
-                initialValue: quantity.toString(),
+                initialValue: WhatsAppHelpers.formatQuantity(quantity),
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -343,24 +350,40 @@ class SelectedProductCard extends StatelessWidget {
   }
 }
 
-class QuotationMessagePreview extends StatelessWidget {
+class QuotationMessagePreview extends StatefulWidget {
   final NewQuotationState state;
   const QuotationMessagePreview({super.key, required this.state});
 
   @override
+  State<QuotationMessagePreview> createState() => _QuotationMessagePreviewState();
+}
+
+class _QuotationMessagePreviewState extends State<QuotationMessagePreview> {
+  bool showRedeTemplate = false;
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final buffer = StringBuffer();
     buffer.writeln('📋 *NOVA COTAÇÃO - COTAZAP*');
     buffer.writeln('---');
     for (var entry in state.selectedProducts.entries) {
-      buffer.writeln('• ${entry.value} x ${entry.key.description}');
+      final qtyStr = WhatsAppHelpers.formatQuantity(entry.value);
+      buffer.writeln('• $qtyStr ${entry.key.unitMeasure} x ${entry.key.description}');
     }
     buffer.writeln('---');
     buffer.writeln('📍 Frete: ${state.deliveryType}');
     buffer.writeln('📅 Entrega: ${state.leadTimeDefault} dias');
     buffer.writeln('💰 Pagamento: ${state.paymentCondition} (${state.paymentTermDays} dias)');
     buffer.writeln('---');
-    buffer.write('Responder via link CotaZap: [LINK]');
+    
+    if (showRedeTemplate) {
+      buffer.write('Responder via link CotaZap: [LINK]');
+    } else {
+      buffer.writeln('👉 *COMO RESPONDER:*');
+      buffer.writeln('Favor responder com o preço dos itens acima (pode ser texto ou foto da sua proposta).');
+      buffer.write('Nossa IA processará os dados automaticamente.');
+    }
 
     return Container(
       width: double.infinity,
@@ -373,11 +396,29 @@ class QuotationMessagePreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.remove_red_eye, size: 16, color: Color(0xFF075E54)),
-              SizedBox(width: 8),
-              Text('Pré-visualização da Mensagem', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF075E54))),
+              const Row(
+                children: [
+                  Icon(Icons.remove_red_eye, size: 16, color: Color(0xFF075E54)),
+                  SizedBox(width: 8),
+                  Text('Pré-visualização da Mensagem', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF075E54))),
+                ],
+              ),
+              // Toggle Preview
+              TextButton.icon(
+                onPressed: () => setState(() => showRedeTemplate = !showRedeTemplate),
+                icon: Icon(showRedeTemplate ? Icons.link : Icons.auto_awesome, size: 14, color: const Color(0xFF128C7E)),
+                label: Text(
+                  showRedeTemplate ? 'Ver Tradicional' : 'Ver Rede',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF128C7E), fontWeight: FontWeight.bold),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  backgroundColor: const Color(0xFF25D366).withOpacity(0.1),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

@@ -37,6 +37,7 @@ O CotaZap dá ao Comprador superpoderes de negociação com ferramentas de últi
 *   **🔵 MISSÃO 2: Rede CotaZap (Marketplace)**: Descoberta inteligente de novos fornecedores por categoria e região.
 *   **🟡 MISSÃO 3: Analytics e Tendências**: Gráficos de variação de preços e sugestão de melhor momento para compra.
 *   **🔴 MISSÃO 4: Pagamento Integrado**: Ciclo de compra 100% digital com pagamento via Pix/Boleto pelo próprio app.
+*   **🟣 MISSÃO 5: Multi-Usuários e Gestão Centralizada**: Arquitetura Empresarial (Supabase RLS/Multi-tenant) centralizando o acesso e fluxo de cotações para diferentes colaboradores sob a mesma assinatura da empresa.
 
 ---
 

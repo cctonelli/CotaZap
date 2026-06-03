@@ -29,28 +29,18 @@ async def send_quotation_to_suppliers(
     O backend apenas orquestra o disparo via Evolution API.
     Não precisa consultar banco próprio — os dados vêm do Drift/Supabase do app.
     """
-    if not payload.message or not payload.message.strip():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A mensagem da cotação não pode estar vazia.",
-        )
-
-    if not payload.suppliers:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="É necessário informar ao menos um fornecedor para disparar.",
-        )
-
-    # Converter para dict para o serviço de WhatsApp
-    suppliers_data = [
-        {"whatsapp": s.whatsapp, "trade_name": s.trade_name}
-        for s in payload.suppliers
-    ]
+    # Converter para lista de objetos para o serviço de WhatsApp, respeitando mensagens individuais
+    suppliers_data = []
+    for s in payload.suppliers:
+        suppliers_data.append({
+            "whatsapp": s.whatsapp,
+            "trade_name": s.trade_name,
+            "message": s.message or payload.message # Se o fornecedor tem msg própria (personalizada com nome), usa ela. Se não, usa a padrão.
+        })
 
     # Disparar mensagens via Evolution API
     result = await whatsapp_service.send_quotation_to_suppliers(
         suppliers=suppliers_data,
-        message=payload.message,
         instance=payload.evolution_instance,
     )
 

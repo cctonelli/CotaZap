@@ -103,6 +103,11 @@ services:
       - OPENAI_ENABLED=false
       - S3_ENABLED=false
       - DEL_INSTANCE=false
+      
+      # Webhooks (Conecta Evolution API → FastAPI)
+      - WEBHOOK_GLOBAL_URL=http://cotazap_backend:8000/webhooks/evolution-webhook
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_EVENTS=MESSAGES_UPSERT,MESSAGES_UPDATE
     volumes:
       - evolution_instances:/evolution/instances
 

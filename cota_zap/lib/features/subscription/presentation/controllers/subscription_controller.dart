@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/utils/app_logger.dart';
+import 'package:cota_zap/core/di/injection.dart';
+import 'package:cota_zap/core/utils/app_logger.dart';
+import 'package:cota_zap/features/auth/domain/repositories/profile_repository.dart';
 
 final subscriptionControllerProvider = StateNotifierProvider<SubscriptionController, AsyncValue<void>>((ref) {
   return SubscriptionController(ref);
@@ -9,40 +9,33 @@ final subscriptionControllerProvider = StateNotifierProvider<SubscriptionControl
 
 class SubscriptionController extends StateNotifier<AsyncValue<void>> {
   final Ref _ref;
-  final _supabase = Supabase.instance.client;
 
-  SubscriptionController(this._ref) : super(const AsyncData(null));
+  SubscriptionController(this._ref) : super(const AsyncValue.data(null));
 
   Future<void> upgradePlan(String planType) async {
-    state = const AsyncLoading();
+    state = const AsyncValue.loading();
     try {
       final userId = _ref.read(userIdProvider);
       if (userId == null) throw Exception('Usuário não autenticado');
 
-      // 1. Atualizar no Supabase (Simulando sucesso do Stripe)
-      await _supabase
-          .from('profiles')
-          .update({'plan_type': planType})
-          .eq('id', userId);
+      final profileRepository = _ref.read(profileRepositoryProvider);
+      final quotaService = _ref.read(quotaServiceProvider);
 
-      // 2. Atualizar Estado Local
+      // 1. Atualizar Estado Local no Provider
       _ref.read(planTypeProvider.notifier).state = planType;
 
+      // 2. Atualizar no DB Local e Cloud via Repository
+      await profileRepository.updatePlanType(userId, planType);
+
       // 3. Atualizar Quotas no Banco Local (Via QuotaService)
-      final quotaService = _ref.read(quotaServiceProvider);
       await quotaService.syncQuotas(userId, planType);
 
       AppLogger.info('Upgrade de plano concluído: $planType', tag: 'Subscription');
-      state = const AsyncData(null);
+      state = const AsyncValue.data(null);
     } catch (e, stack) {
       AppLogger.error('Erro no upgrade de plano', error: e, stackTrace: stack, tag: 'Subscription');
-      state = AsyncError(e, stack);
+      state = AsyncValue.error(e, stack);
       rethrow;
     }
-  }
-
-  Future<void> downgradePlan(String planType) async {
-    // Mesma lógica se necessário
-    await upgradePlan(planType);
   }
 }

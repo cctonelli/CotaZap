@@ -12,7 +12,7 @@ def read_buyers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     buyers = db.query(Buyer).offset(skip).limit(limit).all()
     return buyers
 
-@router.post("/", response_model=BuyerRead, status_code=status.HTTP_210_CREATED)
+@router.post("/", response_model=BuyerRead, status_code=status.HTTP_201_CREATED)
 def create_buyer(buyer_in: BuyerCreate, db: Session = Depends(get_db)):
     db_buyer = Buyer(
         name=buyer_in.name,

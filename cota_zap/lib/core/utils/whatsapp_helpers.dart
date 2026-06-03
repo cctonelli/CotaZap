@@ -5,25 +5,31 @@ class WhatsAppHelpers {
     required String buyerName,
     required String company,
     required String supplierName,
-    required String productDesc,
-    required double qty,
-    required String unit,
-    required String packaging,
-    required String attributes,
+    required String productList,
     required String deliveryType,
     required int leadTime,
+    required int paymentTermDays,
+    required String paymentCondition,
   }) {
     return template
         .replaceAll('{nome_comprador}', buyerName)
         .replaceAll('{empresa}', company)
         .replaceAll('{nome_fornecedor}', supplierName)
-        .replaceAll('{descricao_produto}', productDesc)
-        .replaceAll('{quantidade}', qty.toString())
-        .replaceAll('{unidade}', unit)
-        .replaceAll('{tipo_embalagem}', packaging)
-        .replaceAll('{atributos}', attributes)
+        .replaceAll('{lista_produtos}', productList)
         .replaceAll('{tipo_entrega}', deliveryType)
-        .replaceAll('{prazo}', leadTime.toString());
+        .replaceAll('{frete}', deliveryType)
+        .replaceAll('{prazo}', leadTime.toString())
+        .replaceAll('{prazo_entrega}', leadTime.toString())
+        .replaceAll('{prazo_pagamento}', paymentTermDays.toString())
+        .replaceAll('{condicao_pagamento}', paymentCondition);
+  }
+
+  /// Formata a quantidade para remover .0 desnecessário
+  static String formatQuantity(double quantity) {
+    if (quantity == quantity.toInt()) {
+      return quantity.toInt().toString();
+    }
+    return quantity.toString();
   }
 
   /// Gera um delay aleatório para mensagens (em milissegundos) entre 800 e 2500ms

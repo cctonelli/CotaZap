@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cota_zap/core/di/injection.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cota_zap/features/quotation/presentation/pages/new_quotation_page.dart';
 import 'package:cota_zap/features/onboarding/presentation/pages/onboarding_role_page.dart';
@@ -22,6 +24,24 @@ import 'package:cota_zap/core/presentation/pages/diagnostics_page.dart';
 class AppRouter {
   static final router = GoRouter(
     initialLocation: '/login',
+    refreshListenable: null, // Idealmente usar um listenable aqui
+    redirect: (context, state) {
+      final container = ProviderScope.containerOf(context);
+      final userId = container.read(userIdProvider);
+      final role = container.read(userRoleProvider);
+      
+      final isLoggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
+
+      if (userId == null) {
+        return isLoggingIn ? null : '/login';
+      }
+
+      if (isLoggingIn) {
+        return '/onboarding';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',

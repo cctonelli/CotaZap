@@ -19,6 +19,14 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
   final _nameController = TextEditingController(); // Nome Fantasia
   final _emailController = TextEditingController();
   final _whatsappController = TextEditingController();
+  
+  // Novos campos para Fornecedor
+  final _cnpjController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+  final _zipCodeController = TextEditingController();
+
   bool _isSupplierToo = false;
   bool _isLoading = false;
   int? _contactId; // ID real da tabela app_contacts (BigInt no Supabase)
@@ -76,6 +84,11 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
               contactName: drift.Value(remoteData['contact_name']),
               whatsapp: drift.Value(remoteData['whatsapp']),
               email: drift.Value(remoteData['email']),
+              cnpjCpf: drift.Value(remoteData['cnpj_cpf']),
+              address: drift.Value(remoteData['address']),
+              city: drift.Value(remoteData['city']),
+              state: drift.Value(remoteData['state']),
+              zipCode: drift.Value(remoteData['zip_code']),
               ownerId: drift.Value(remoteData['owner_id']),
               isBuyer: const drift.Value(true),
               isSynced: const drift.Value(true),
@@ -94,6 +107,11 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
           _nameController.text = contactData.tradeName;
           _contactNameController.text = contactData.contactName ?? '';
           _emailController.text = contactData.email ?? user.email ?? '';
+          _cnpjController.text = contactData.cnpjCpf ?? '';
+          _addressController.text = contactData.address ?? '';
+          _cityController.text = contactData.city ?? '';
+          _stateController.text = contactData.state ?? '';
+          _zipCodeController.text = contactData.zipCode ?? '';
           
           String phone = contactData.whatsapp ?? '';
           if (phone.startsWith('+55 ')) phone = phone.replaceFirst('+55 ', '');
@@ -115,6 +133,11 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
     _nameController.dispose();
     _emailController.dispose();
     _whatsappController.dispose();
+    _cnpjController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _zipCodeController.dispose();
     super.dispose();
   }
 
@@ -140,6 +163,11 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
         contactName: drift.Value(_contactNameController.text),
         email: drift.Value(_emailController.text),
         whatsapp: drift.Value('+55 ${_whatsappController.text}'),
+        cnpjCpf: drift.Value(_cnpjController.text),
+        address: drift.Value(_addressController.text),
+        city: drift.Value(_cityController.text),
+        state: drift.Value(_stateController.text),
+        zipCode: drift.Value(_zipCodeController.text),
         isBuyer: const drift.Value(true),
         isSupplier: drift.Value(_isSupplierToo || ref.read(userRoleProvider) == UserRole.supplier),
         active: const drift.Value(true),
@@ -153,6 +181,11 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
         'contact_name': _contactNameController.text,
         'email': _emailController.text,
         'whatsapp': '+55 ${_whatsappController.text}',
+        'cnpj_cpf': _cnpjController.text,
+        'address': _addressController.text,
+        'city': _cityController.text,
+        'state': _stateController.text,
+        'zip_code': _zipCodeController.text,
         'is_buyer': true,
         'is_supplier': _isSupplierToo || ref.read(userRoleProvider) == UserRole.supplier,
         'active': true,
@@ -163,10 +196,10 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
         supabaseData['id'] = _contactId;
       }
 
-      // Realiza o upsert e captura o resultado (para obter o ID se for novo cadastro)
+      // IMPORTANTE: onConflict: ['owner_id', 'email'] resolve o erro unique_owner_email
       final response = await SupabaseService.client
           .from('app_contacts')
-          .upsert(supabaseData)
+          .upsert(supabaseData, onConflict: 'owner_id,email')
           .select('id')
           .single();
       
@@ -177,7 +210,7 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
       // 3. Atualiza a tabela mestra de perfis para o login híbrido
       await SupabaseService.client.from('profiles').update({
         'role': _isSupplierToo ? 'buyer,supplier' : 'buyer',
-        'name': _nameController.text,
+        'full_name': _nameController.text,
       }).eq('id', userId);
 
       if (mounted) {
@@ -189,6 +222,7 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
         );
       }
     } catch (e) {
+      AppLogger.error('Erro ao salvar perfil', error: e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -317,6 +351,57 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
               prefixText: '+55 ',
               keyboardType: TextInputType.phone,
             ),
+            
+            // Campos extras que aparecem se for Fornecedor
+            if (_isSupplierToo) ...[
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 20),
+              const Text(
+                'Dados do Fornecedor',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF128C7E)),
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _cnpjController,
+                label: 'CNPJ / CPF',
+                icon: Icons.business,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _zipCodeController,
+                label: 'CEP',
+                icon: Icons.map,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _addressController,
+                label: 'Endereço',
+                icon: Icons.location_on,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _buildTextField(
+                      controller: _cityController,
+                      label: 'Cidade',
+                      icon: Icons.location_city,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _stateController,
+                      label: 'UF',
+                      icon: Icons.map_outlined,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 12),

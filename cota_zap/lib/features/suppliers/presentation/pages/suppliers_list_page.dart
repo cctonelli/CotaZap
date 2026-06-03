@@ -411,7 +411,12 @@ class _SuppliersListPageState extends ConsumerState<SuppliersListPage> {
                     validator: (val) => (val == null || val.isEmpty) ? 'Obrigatório' : null,
                   ),
                   const SizedBox(height: 20),
-                  _buildSheetTextField(controller: contactController, label: 'Nome do Contato', icon: Icons.person_outline),
+                  _buildSheetTextField(
+                    controller: contactController, 
+                    label: 'Nome do Contato', 
+                    icon: Icons.person_outline,
+                    validator: (val) => (val == null || val.isEmpty) ? 'Obrigatório' : null,
+                  ),
                   const SizedBox(height: 20),
                   _buildSheetTextField(
                     controller: whatsappController, 

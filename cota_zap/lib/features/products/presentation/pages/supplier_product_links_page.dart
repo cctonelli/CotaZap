@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cota_zap/core/network/supabase_service.dart';
 import 'package:cota_zap/drift/database.dart';
 import 'package:cota_zap/features/products/presentation/controllers/products_controller.dart';
 import 'package:cota_zap/features/suppliers/presentation/controllers/suppliers_controller.dart';
@@ -69,15 +70,40 @@ class _SupplierProductLinksPageState extends ConsumerState<SupplierProductLinksP
     try {
       final dao = ref.read(productsDaoProvider);
       
-      // 1. Limpa vínculos atuais do produto
+      // 1. Limpa vínculos atuais do produto localmente
       final existing = await dao.getSuppliersForProduct(_selectedProduct!.id);
       for (var link in existing) {
         await dao.unlinkProductFromSupplier(_selectedProduct!.id, link.supplierId);
       }
 
-      // 2. Insere novos vínculos
+      // 2. Insere novos vínculos localmente
       for (var suppId in _currentSupplierIds) {
         await dao.linkProductToSupplier(_selectedProduct!.id, suppId);
+      }
+
+      // 3. Sincroniza com Supabase v1.5
+      try {
+        // Primeiro, remove vínculos antigos na nuvem para este produto
+        await SupabaseService.client
+            .from('product_suppliers')
+            .delete()
+            .eq('product_id', _selectedProduct!.id);
+
+        // Insere os novos vínculos na nuvem
+        if (_currentSupplierIds.isNotEmpty) {
+          final cloudLinks = _currentSupplierIds.map((sid) => {
+            'product_id': _selectedProduct!.id,
+            'supplier_id': sid,
+          }).toList();
+
+          await SupabaseService.client
+              .from('product_suppliers')
+              .insert(cloudLinks);
+        }
+        AppLogger.success('Vínculos sincronizados com sucesso no Supabase!', tag: 'Products');
+      } catch (cloudError) {
+        // Se falhar a nuvem, mantemos o local e avisamos (Offline-first)
+        AppLogger.warning('Vínculo salvo apenas localmente (erro na nuvem): $cloudError', tag: 'Products');
       }
 
       if (mounted) {

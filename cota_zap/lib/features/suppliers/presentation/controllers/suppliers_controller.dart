@@ -83,8 +83,6 @@ class SuppliersController extends Notifier<SuppliersState> {
     
     final db = ref.read(databaseProvider);
     try {
-      // FILTRO CRÍTICO: Busca apenas meus dados OU dados da Rede CotaZap
-      // Não traz dados privados de outros compradores
       final remoteSupps = await SupabaseService.fetchTable(
         table: 'app_contacts',
         filter: {
@@ -92,9 +90,16 @@ class SuppliersController extends Notifier<SuppliersState> {
         }
       );
       
-      if (remoteSupps.isNotEmpty) {
+      final Set<int> remoteIds = remoteSupps.map((e) => e['id'] as int).toSet();
+
+      await db.transaction(() async {
+        // Limpa registros locais que não estão no Supabase para este usuário/rede
+        await (db.delete(db.appContacts)
+          ..where((t) => (t.ownerId.equals(userId) | t.isRedeCotazap.equals(true)) & 
+                         t.id.isNotIn(remoteIds.toList())))
+        .go();
+
         for (var supp in remoteSupps) {
-          // Garante que se eu estiver baixando da rede, o owner_id local seja nulo para não confundir
           final bool fromRede = supp['is_rede_cotazap'] ?? false;
           
           await db.into(db.appContacts).insertOnConflictUpdate(
@@ -116,17 +121,19 @@ class SuppliersController extends Notifier<SuppliersState> {
               complement: Value(supp['complement']),
               isBuyer: Value(supp['is_buyer'] ?? false),
               isSupplier: Value(supp['is_supplier'] ?? true),
-              ownerId: Value(fromRede ? null : supp['owner_id']), 
+              ownerId: Value(fromRede ? null : (supp['owner_id'] ?? userId)), 
               isSynced: const Value(true),
             ),
           );
         }
-        _loadFiltered();
-      }
+      });
+      
+      _loadFiltered();
     } catch (e) {
-      AppLogger.error('Erro sync', error: e);
+      AppLogger.error('Erro sync fornecedores', error: e, tag: 'Suppliers');
     }
   }
+
 
   void _loadFiltered() {
     // Evita cancelamento se os parâmetros forem idênticos (opcional, mas bom)
@@ -182,12 +189,15 @@ class SuppliersController extends Notifier<SuppliersState> {
     try {
       AppLogger.info('Cadastrando novo fornecedor no Supabase...', tag: 'Suppliers');
       
+      final cleanEmail = (email != null && email.trim().isNotEmpty) ? email.trim() : null;
+      final cleanCnpj = (cnpjCpf != null && cnpjCpf.trim().isNotEmpty) ? cnpjCpf.trim() : null;
+      
       // 1. Inserir no Supabase PRIMEIRO para garantir o ID oficial
       final response = await SupabaseService.client.from('app_contacts').insert({
         'trade_name': name,
         'whatsapp': whatsapp,
-        'email': email,
-        'cnpj_cpf': cnpjCpf,
+        'email': cleanEmail,
+        'cnpj_cpf': cleanCnpj,
         'contact_name': contactName,
         'address': address,
         'city': city,
@@ -212,8 +222,8 @@ class SuppliersController extends Notifier<SuppliersState> {
         id: Value(remoteId),
         tradeName: Value(name),
         whatsapp: Value(whatsapp),
-        email: Value(email),
-        cnpjCpf: Value(cnpjCpf),
+        email: Value(cleanEmail),
+        cnpjCpf: Value(cleanCnpj),
         contactName: Value(contactName),
         address: Value(address),
         city: Value(city),

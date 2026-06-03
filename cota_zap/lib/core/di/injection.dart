@@ -12,6 +12,11 @@ import 'package:cota_zap/drift/daos/contacts_dao.dart';
 import 'package:cota_zap/features/quotation/domain/services/procurement_engine.dart';
 import 'package:cota_zap/core/services/quota_service.dart';
 
+import 'package:cota_zap/features/quotation/domain/repositories/quotation_repository.dart';
+import 'package:cota_zap/features/quotation/data/repositories/quotation_repository_impl.dart';
+import 'package:cota_zap/features/quotation/domain/usecases/send_quotation_usecase.dart';
+import 'package:cota_zap/features/auth/domain/repositories/profile_repository.dart';
+
 // Providers Globais
 final supabaseClientProvider = Provider<SupabaseClient>((ref) => SupabaseService.client);
 
@@ -35,6 +40,14 @@ final supplierResponsesDaoProvider = Provider<SupplierResponsesDao>((ref) => ref
 final usageQuotasDaoProvider = Provider<UsageQuotasDao>((ref) => ref.watch(databaseProvider).usageQuotasDao);
 final categoryRequestsDaoProvider = Provider((ref) => ref.watch(databaseProvider).categoryRequestsDao);
 final unitsOfMeasureDaoProvider = Provider((ref) => ref.watch(databaseProvider).unitsOfMeasureDao);
+// Repository Providers
+final quotationRepositoryProvider = Provider<QuotationRepository>((ref) {
+  return QuotationRepositoryImpl(ref.watch(quotationsDaoProvider));
+});
+
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  return ProfileRepositoryImpl(ref.watch(databaseProvider), ref.watch(contactsDaoProvider));
+});
 
 // Domain Services
 final procurementEngineProvider = Provider<ProcurementEngine>((ref) {
@@ -42,6 +55,16 @@ final procurementEngineProvider = Provider<ProcurementEngine>((ref) {
     quotationsDao: ref.watch(quotationsDaoProvider),
     supplierResponsesDao: ref.watch(supplierResponsesDaoProvider),
     contactsDao: ref.watch(contactsDaoProvider),
+  );
+});
+
+// UseCase Providers
+final sendQuotationUseCaseProvider = Provider<SendQuotationUseCase>((ref) {
+  return SendQuotationUseCase(
+    quotationRepository: ref.watch(quotationRepositoryProvider),
+    contactsDao: ref.watch(contactsDaoProvider),
+    quotaService: ref.watch(quotaServiceProvider),
+    dio: ref.watch(dioProvider),
   );
 });
 
